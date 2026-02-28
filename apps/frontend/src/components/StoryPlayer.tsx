@@ -6,12 +6,17 @@ export interface StoryPlayerProps {
   segments: StorySegment[];
   restaurant: Restaurant;
   onClose: () => void;
+  onCtaClick?: (cta: { text: string; url: string }) => void;
+  /** Persona name for overlay e.g. "The Vegan" */
+  personaLabel?: string;
 }
 
 export default function StoryPlayer({
   segments,
   restaurant,
   onClose,
+  onCtaClick,
+  personaLabel,
 }: StoryPlayerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [outgoingUrl, setOutgoingUrl] = useState<string | null>(null);
@@ -124,6 +129,22 @@ export default function StoryPlayer({
         </div>
       )}
       <RestaurantDetailBar restaurant={restaurant} />
+      {personaLabel && (
+        <div
+          className="story-player__persona-overlay"
+          style={{
+            position: "absolute",
+            top: 52,
+            left: 16,
+            zIndex: 59,
+            color: "#fff",
+            textShadow: "0 1px 2px rgba(0,0,0,0.8)",
+            fontSize: 13,
+          }}
+        >
+          Personalized for you, {personaLabel}
+        </div>
+      )}
       <div className="story-player__backdrop" />
       <div className="story-player__image-wrap">
         {outgoingUrl && (
@@ -188,7 +209,10 @@ export default function StoryPlayer({
               target="_blank"
               rel="noopener noreferrer"
               className="story-player__cta"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCtaClick?.(segment.cta!);
+              }}
             >
               {segment.cta.text}
             </a>
@@ -198,7 +222,7 @@ export default function StoryPlayer({
               className="story-player__cta"
               onClick={(e) => {
                 e.stopPropagation();
-                console.log("CTA click:", segment.cta?.text);
+                onCtaClick?.(segment.cta!);
               }}
             >
               {segment.cta.text}

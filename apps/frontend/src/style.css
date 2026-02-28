@@ -175,7 +175,9 @@ h1 {
   transition:
     background 0.15s ease,
     border-color 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .persona-switcher__pill:hover {
@@ -187,6 +189,8 @@ h1 {
   background: rgba(255, 255, 255, 0.95);
   border-color: rgba(255, 255, 255, 0.95);
   color: #111827;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
 }
 
 .persona-switcher__emoji {
@@ -233,7 +237,7 @@ h1 {
 }
 
 .story-player__image-outgoing {
-  animation: story-player-fade-out 250ms ease-out forwards;
+  animation: story-player-fade-out 350ms ease-out forwards;
   pointer-events: none;
 }
 
@@ -243,7 +247,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: story-player-fade-in 250ms ease-out forwards;
+  animation: story-player-fade-in 350ms ease-out forwards;
 }
 
 @keyframes story-player-fade-out {

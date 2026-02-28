@@ -1,0 +1,20 @@
+[
+  {
+    "id": "f6a4c6a5-5df2-427c-8104-2c0bc0dca786",
+    "restaurant_id": "r1",
+    "image_url": "https://example.com/intro.jpg",
+    "source": "owner_upload",
+    "tags": [],
+    "slot_type": "personalized",
+    "display_order": 0
+  },
+  {
+    "id": "89dda95f-6edb-41e2-a863-6f052beb127c",
+    "restaurant_id": "r1",
+    "image_url": "https://example.com/outro.jpg",
+    "source": "owner_upload",
+    "tags": [],
+    "slot_type": "personalized",
+    "display_order": 1
+  }
+]

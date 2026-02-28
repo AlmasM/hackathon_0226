@@ -118,14 +118,14 @@ Existing (from Phase 1A): `GET /api/restaurants`, `GET /api/restaurants/<id>`,
 - `apps/backend/api/index.py` - Flask app entry point; add the `/story/personalize` route here
 - `apps/backend/api/personalize.py` - **New file**: Gemini personalization logic and endpoint handler
 - `apps/backend/api/cache.py` - **New file**: Cache layer for pre-generated stories (in-memory or JSON file)
-- `apps/backend/api/warmup.py` - **New file**: Script to pre-generate 15 story combinations
+- Warmup: `POST /api/warmup` in `index.py` pre-generates story combinations (no separate warmup.py)
 - `apps/backend/requirements.txt` - May need `google-generativeai` if not already present
 - `apps/frontend/src/App.tsx` - Root component with routing
 - `apps/frontend/src/pages/DiscoveryPage.tsx` - Map + restaurant list (exists from Phase 1B)
-- `apps/frontend/src/pages/StoryPage.tsx` - Story player page (exists from Phase 1B); needs API integration
+- `apps/frontend/src/pages/RestaurantStoryPage.tsx` - Story player page (Phase 1B); wired to personalize API + fallback
 - `apps/frontend/src/components/StoryPlayer.tsx` - Story player component (exists from Phase 1B)
 - `apps/frontend/src/components/PersonaSwitcher.tsx` - Persona switcher (exists from Phase 1B)
-- `apps/frontend/src/components/OwnerDashboard.tsx` - Owner dashboard (exists from Phase 1A); needs preview button
+- `apps/frontend/src/pages/OwnerDashboardPage.tsx` - Owner dashboard (Phase 1A); includes Preview Story button
 - `apps/frontend/src/hooks/usePersonalizedStory.ts` - **New file**: Hook to call personalize API
 - `apps/frontend/src/services/api.ts` - API client functions (may exist or need creation)
 - `docs/demo-script.md` - **New file**: 3-minute demo script
@@ -148,7 +148,7 @@ Existing (from Phase 1A): `GET /api/restaurants`, `GET /api/restaurants/<id>`,
 
 ## Tasks
 
-### [ ] 1.0 AI Personalization API Endpoint (Dev A — Backend)
+### [x] 1.0 AI Personalization API Endpoint (Dev A — Backend)
 
 `description`: Build the `POST /api/restaurants/<id>/story/personalize` endpoint —
 the core of TasteTales. This endpoint takes a user profile ID, fetches the
@@ -165,21 +165,21 @@ restaurants. Verify the returned JSON matches the `CompiledStory` shape. Verify
 that different personas produce different image selections. Test Gemini failure
 fallback by temporarily using a bad API key.
 
-- [ ] 1.1 Create `apps/backend/api/personalize.py` with the route handler function for `POST /api/restaurants/<id>/story/personalize`. Accept JSON body `{ "user_profile_id": "uuid" }`. Return 400 if `user_profile_id` is missing.
-- [ ] 1.2 In the handler, read from `restaurant_images.json` via `data_store` for the restaurant's images where `slot_type = 'personalized'`, including their `tags`. Also fetch the images with `slot_type = 'intro'` and `slot_type = 'outro'`. Return 404 if restaurant not found.
-- [ ] 1.3 Read from `user_profiles.json` via `data_store` for the row matching the provided `user_profile_id`. Extract `preferences.tags` and `preferences.avoid_tags`. Return 404 if user not found.
-- [ ] 1.4 Read from `story_templates.json` via `data_store` for this restaurant. If none exists, use sensible defaults (first image as intro, last as outro, CTA text "Visit us!").
-- [ ] 1.5 Build the Gemini prompt: `"Given a user who prefers [tags] and avoids [avoid_tags], rank these restaurant images by relevance. Images: [list of {id, tags}]. Return ONLY a JSON array of image IDs ordered by relevance, most relevant first. No explanation, no markdown, just the JSON array."` Call `google.generativeai` with this prompt.
-- [ ] 1.6 Parse Gemini's response. Strip any markdown code fences (` ```json ... ``` `). Attempt `json.loads()`. If parsing fails, log the raw response and fall through to the fallback.
-- [ ] 1.7 Implement the tag-matching fallback: score each personalized image by counting matching `tags` (+1 per match) and `avoid_tags` (-2 per match). Sort by score descending. This mirrors Dev B's client-side logic.
-- [ ] 1.8 Select the top 2–3 personalized images from the ranked list (Gemini or fallback). Combine with the intro image (first segment) and outro image (last segment) to build the `segments` array.
-- [ ] 1.9 Assign animation types: cycle through `ken_burns_zoom_in`, `ken_burns_pan_right`, `ken_burns_zoom_out`, `ken_burns_pan_left` for variety. Set `duration_ms` to 5000 per segment. Attach the CTA (from `story_template`) to the last segment only.
-- [ ] 1.10 Assemble the full `CompiledStory` response: `{ "restaurant": {...}, "segments": [...] }`. Return as JSON with `Content-Type: application/json`.
-- [ ] 1.11 Register the route in `apps/backend/api/index.py` by importing the handler from `personalize.py` and adding the route to the Flask app.
-- [ ] 1.12 Add cache check at the top of the handler: before calling Gemini, check if a cached result exists for this `(restaurant_id, user_profile_id)` pair. If found, return it immediately. Cache storage is implemented in Task 6.0.
-- [ ] 1.13 Test manually with `curl` for all 3 personas against 2 restaurants (6 calls total). Verify different personas get different image selections. Verify response shape matches `CompiledStory`.
+- [x] 1.1 Create `apps/backend/api/personalize.py` with the route handler function for `POST /api/restaurants/<id>/story/personalize`. Accept JSON body `{ "user_profile_id": "uuid" }`. Return 400 if `user_profile_id` is missing.
+- [x] 1.2 In the handler, read from `restaurant_images.json` via `data_store` for the restaurant's images where `slot_type = 'personalized'`, including their `tags`. Also fetch the images with `slot_type = 'intro'` and `slot_type = 'outro'`. Return 404 if restaurant not found.
+- [x] 1.3 Read from `user_profiles.json` via `data_store` for the row matching the provided `user_profile_id`. Extract `preferences.tags` and `preferences.avoid_tags`. Return 404 if user not found.
+- [x] 1.4 Read from `story_templates.json` via `data_store` for this restaurant. If none exists, use sensible defaults (first image as intro, last as outro, CTA text "Visit us!").
+- [x] 1.5 Build the Gemini prompt: `"Given a user who prefers [tags] and avoids [avoid_tags], rank these restaurant images by relevance. Images: [list of {id, tags}]. Return ONLY a JSON array of image IDs ordered by relevance, most relevant first. No explanation, no markdown, just the JSON array."` Call `google.generativeai` with this prompt.
+- [x] 1.6 Parse Gemini's response. Strip any markdown code fences (` ```json ... ``` `). Attempt `json.loads()`. If parsing fails, log the raw response and fall through to the fallback.
+- [x] 1.7 Implement the tag-matching fallback: score each personalized image by counting matching `tags` (+1 per match) and `avoid_tags` (-2 per match). Sort by score descending. This mirrors Dev B's client-side logic.
+- [x] 1.8 Select the top 2–3 personalized images from the ranked list (Gemini or fallback). Combine with the intro image (first segment) and outro image (last segment) to build the `segments` array.
+- [x] 1.9 Assign animation types: cycle through `ken_burns_zoom_in`, `ken_burns_pan_right`, `ken_burns_zoom_out`, `ken_burns_pan_left` for variety. Set `duration_ms` to 5000 per segment. Attach the CTA (from `story_template`) to the last segment only.
+- [x] 1.10 Assemble the full `CompiledStory` response: `{ "restaurant": {...}, "segments": [...] }`. Return as JSON with `Content-Type: application/json`.
+- [x] 1.11 Register the route in `apps/backend/api/index.py` by importing the handler from `personalize.py` and adding the route to the Flask app.
+- [x] 1.12 Add cache check at the top of the handler: before calling Gemini, check if a cached result exists for this `(restaurant_id, user_profile_id)` pair. If found, return it immediately. Cache storage is implemented in Task 6.0.
+- [x] 1.13 Test manually with `curl` for all 3 personas against 2 restaurants (6 calls total). Verify different personas get different image selections. Verify response shape matches `CompiledStory`.
 
-### [ ] 2.0 Wire Story Player to Backend API (Dev B — Frontend)
+### [x] 2.0 Wire Story Player to Backend API (Dev B — Frontend)
 
 `description`: Replace the client-side story compilation (API reads +
 tag matching) with calls to the new `POST /api/restaurants/<id>/story/personalize`
@@ -195,15 +195,15 @@ Network tab). Switch personas, verify the story re-fetches and shows different
 images. Kill the backend, verify the fallback kicks in and the story still loads
 (with client-side compilation).
 
-- [ ] 2.1 Create `apps/frontend/src/hooks/usePersonalizedStory.ts`. This custom hook takes `restaurantId: string` and `userProfileId: string` as arguments. It calls `POST /api/restaurants/${restaurantId}/story/personalize` with `{ user_profile_id: userProfileId }` and returns `{ story: CompiledStory | null, loading: boolean, error: Error | null }`.
-- [ ] 2.2 In the hook, add error handling: if the API returns a non-200 status or the network request fails, set the `error` state and return `null` for `story`. The consuming component will use this to trigger the fallback.
-- [ ] 2.3 In the hook, re-fetch when `userProfileId` changes (persona switch). Use `userProfileId` in the `useEffect` dependency array. Cancel any in-flight request when a new one starts (use `AbortController`).
-- [ ] 2.4 Update the Story page/component (e.g., `StoryPage.tsx`) to use `usePersonalizedStory` instead of the existing API query + client-side compilation. Pass the active persona's `id` from the persona context.
-- [ ] 2.5 Add fallback logic in the Story page: if `usePersonalizedStory` returns an error, fall back to the existing client-side story compilation function. Show a brief toast or console warning: "Using offline story compilation."
-- [ ] 2.6 Show the existing loading skeleton while `loading` is `true`. Ensure it matches the story player dimensions so there's no layout shift.
-- [ ] 2.7 Test the full flow: discovery map → click restaurant → loading skeleton → story plays with API data. Switch persona → loading skeleton → story replays with different images.
+- [x] 2.1 Create `apps/frontend/src/hooks/usePersonalizedStory.ts`. This custom hook takes `restaurantId: string` and `userProfileId: string` as arguments. It calls `POST /api/restaurants/${restaurantId}/story/personalize` with `{ user_profile_id: userProfileId }` and returns `{ story: CompiledStory | null, loading: boolean, error: Error | null }`.
+- [x] 2.2 In the hook, add error handling: if the API returns a non-200 status or the network request fails, set the `error` state and return `null` for `story`. The consuming component will use this to trigger the fallback.
+- [x] 2.3 In the hook, re-fetch when `userProfileId` changes (persona switch). Use `userProfileId` in the `useEffect` dependency array. Cancel any in-flight request when a new one starts (use `AbortController`).
+- [x] 2.4 Update the Story page/component (e.g., `StoryPage.tsx`) to use `usePersonalizedStory` instead of the existing API query + client-side compilation. Pass the active persona's `id` from the persona context.
+- [x] 2.5 Add fallback logic in the Story page: if `usePersonalizedStory` returns an error, fall back to the existing client-side story compilation function. Show a brief toast or console warning: "Using offline story compilation."
+- [x] 2.6 Show the existing loading skeleton while `loading` is `true`. Ensure it matches the story player dimensions so there's no layout shift.
+- [x] 2.7 Test the full flow: discovery map → click restaurant → loading skeleton → story plays with API data. Switch persona → loading skeleton → story replays with different images.
 
-### [ ] 3.0 Navigation Flow Polish (Dev B — Frontend)
+### [x] 3.0 Navigation Flow Polish (Dev B — Frontend)
 
 `description`: Ensure smooth, intuitive navigation between the discovery map and
 the story player. Handle edge cases like deep links and back navigation.
@@ -222,7 +222,7 @@ position is preserved after closing a story.
 - [ ] 3.4 Ensure the persona switcher component is visible and functional on the discovery page (not just the story page). It should be in a fixed header or floating position.
 - [ ] 3.5 Test on mobile viewport (Chrome DevTools device mode): verify the story player fills the screen, the close button is reachable, and the persona switcher doesn't overlap critical UI.
 
-### [ ] 4.0 Owner-to-Consumer Preview Link (Dev A — Frontend)
+### [x] 4.0 Owner-to-Consumer Preview Link (Dev A — Frontend)
 
 `description`: Add a "Preview Story" button to the owner dashboard that navigates
 to the consumer story view for that restaurant, so owners can see how their story
@@ -240,7 +240,7 @@ plays. Switch personas in the preview and verify different images appear.
 - [ ] 4.3 In the Story page, detect the `?preview=true` parameter. When in preview mode, show a small banner at the top: "Owner Preview Mode — switch personas to see different versions." The banner should be dismissible.
 - [ ] 4.4 Ensure the persona switcher is fully functional in preview mode (it already should be from Task 3.4, but verify).
 
-### [ ] 5.0 CTA Integration (Both Devs)
+### [x] 5.0 CTA Integration (Both Devs)
 
 `description`: Make the Call-to-Action button on the last story segment functional
 and visually prominent. In the PoC, clicking CTA shows a toast; we also log clicks
@@ -259,7 +259,7 @@ appears. Check the console or network tab for the logged click event.
 - [ ] 5.3 **(Dev B — Frontend)** Log the CTA click event: `console.log('CTA_CLICK', { restaurant_id, persona_type, cta_text, timestamp })`. In a real product this would be an analytics event; for the PoC, console logging is sufficient.
 - [ ] 5.4 **(Dev A — Backend, optional)** If time allows, add a `POST /api/analytics/cta-click` endpoint that stores clicks in a JSON file or logs them. This can power a "CTA clicks by persona" metric for the demo. Skip if time is tight.
 
-### [ ] 6.0 Pre-warm Cache / Pre-generate Stories (Dev A — Backend)
+### [x] 6.0 Pre-warm Cache / Pre-generate Stories (Dev A — Backend)
 
 `description`: Create a script that pre-generates personalized stories for all 15
 restaurant × persona combinations (5 restaurants × 3 personas) and caches the
@@ -280,7 +280,7 @@ Clear the cache and verify it falls back to live Gemini calls.
 - [ ] 6.4 Add a `GET /api/cache/status` endpoint that returns the number of cached stories and lists which combinations are cached. Useful for verifying the warmup ran correctly.
 - [ ] 6.5 Run the warmup script and verify all 15 combinations are cached. Test that the personalize endpoint returns cached results instantly.
 
-### [ ] 7.0 Demo Polish & Visual Tweaks (Dev B — Frontend)
+### [x] 7.0 Demo Polish & Visual Tweaks (Dev B — Frontend)
 
 `description`: Final UI polish to maximize demo impact. The story player should
 feel like a real product — smooth animations, clear persona indication, and
@@ -324,7 +324,7 @@ works, CTA appears. Check browser console for errors.
 - [ ] 8.7 Check the browser console for any errors (CORS, 404s, uncaught exceptions). Fix any issues found.
 - [ ] 8.8 If CORS issues arise, add the deployed frontend domain to the Flask CORS allowed origins in `apps/backend/api/index.py`.
 
-### [ ] 9.0 Demo Script Preparation (Both Devs)
+### [x] 9.0 Demo Script Preparation (Both Devs)
 
 `description`: Write a concise 3-minute demo script that showcases the key value
 propositions of TasteTales: AI-personalized restaurant stories, persona-driven

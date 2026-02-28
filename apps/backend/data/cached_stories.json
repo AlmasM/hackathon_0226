@@ -1,0 +1,82 @@
+{
+  "r1:up1": {
+    "restaurant": {
+      "id": "r1",
+      "google_place_id": "ChIJAQBEylJYwokRlNgMJJHxNiA",
+      "name": "Le Bernardin",
+      "address": "155 W 51st St, New York, NY",
+      "lat": 40.7618,
+      "lng": -73.9818,
+      "rating": 4.7,
+      "cuisine_type": [
+        "french",
+        "seafood",
+        "fine_dining"
+      ],
+      "phone": null,
+      "website": null
+    },
+    "segments": [
+      {
+        "type": "intro",
+        "image": {
+          "id": "f6a4c6a5-5df2-427c-8104-2c0bc0dca786",
+          "restaurant_id": "r1",
+          "image_url": "https://example.com/intro.jpg",
+          "source": "owner_upload",
+          "tags": [],
+          "slot_type": "personalized",
+          "display_order": 0
+        },
+        "duration_ms": 5000,
+        "animation": "ken_burns_zoom_in"
+      },
+      {
+        "type": "personalized",
+        "image": {
+          "id": "f6a4c6a5-5df2-427c-8104-2c0bc0dca786",
+          "restaurant_id": "r1",
+          "image_url": "https://example.com/intro.jpg",
+          "source": "owner_upload",
+          "tags": [],
+          "slot_type": "personalized",
+          "display_order": 0
+        },
+        "duration_ms": 5000,
+        "animation": "ken_burns_pan_right"
+      },
+      {
+        "type": "personalized",
+        "image": {
+          "id": "89dda95f-6edb-41e2-a863-6f052beb127c",
+          "restaurant_id": "r1",
+          "image_url": "https://example.com/outro.jpg",
+          "source": "owner_upload",
+          "tags": [],
+          "slot_type": "personalized",
+          "display_order": 1
+        },
+        "duration_ms": 5000,
+        "animation": "ken_burns_zoom_out"
+      },
+      {
+        "type": "outro",
+        "image": {
+          "id": "89dda95f-6edb-41e2-a863-6f052beb127c",
+          "restaurant_id": "r1",
+          "image_url": "https://example.com/outro.jpg",
+          "source": "owner_upload",
+          "tags": [],
+          "slot_type": "personalized",
+          "display_order": 1
+        },
+        "duration_ms": 5000,
+        "animation": "ken_burns_pan_left",
+        "cta": {
+          "text": "Book a Table",
+          "url": ""
+        }
+      }
+    ]
+  }
+}

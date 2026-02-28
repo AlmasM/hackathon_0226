@@ -1,0 +1,32 @@
+[
+  {
+    "id": "up1",
+    "name": "The Vegan",
+    "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=vegan",
+    "persona_type": "vegan",
+    "preferences": {
+      "tags": ["vegan", "vegetarian", "salad", "organic", "plant_based", "smoothie", "avocado", "tofu", "garden", "healthy"],
+      "avoid_tags": ["steak", "meat", "burger", "bbq", "bacon", "ribeye", "pork", "chicken_wings"]
+    }
+  },
+  {
+    "id": "up2",
+    "name": "The Carnivore",
+    "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=carnivore",
+    "persona_type": "carnivore",
+    "preferences": {
+      "tags": ["steak", "burger", "bbq", "meat", "ribeye", "smoked", "grill", "bacon", "wings", "prime_rib"],
+      "avoid_tags": ["tofu", "vegan", "plant_based"]
+    }
+  },
+  {
+    "id": "up3",
+    "name": "The Cocktail Lover",
+    "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=cocktail",
+    "persona_type": "cocktail_lover",
+    "preferences": {
+      "tags": ["cocktail", "bar", "wine", "craft_beer", "mixology", "happy_hour", "drinks", "martini", "speakeasy", "rooftop"],
+      "avoid_tags": []
+    }
+  }
+]

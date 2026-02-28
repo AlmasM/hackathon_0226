@@ -145,7 +145,11 @@ export function useCompiledStory(restaurantId: string): UseCompiledStoryResult {
           return;
         }
 
-        const restaurant: RestaurantWithImages = await restaurantRes.json();
+        const data = await restaurantRes.json();
+        const restaurant: RestaurantWithImages = {
+          ...data,
+          restaurant_images: data.restaurant_images ?? data.images ?? [],
+        };
         let storyTemplate: StoryTemplate | null = null;
         if (templateRes.ok) {
           storyTemplate = await templateRes.json();

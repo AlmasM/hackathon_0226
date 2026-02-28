@@ -71,6 +71,20 @@ Dev B is building the **consumer-facing Story Viewer** — the Instagram-style r
 - `apps/backend/requirements.txt` — Python dependencies (add `google-generativeai` if needed)
 - `apps/backend/api/data_store.py` — JSON file read/write utilities
 
+**Files created or modified (Phase 1A implementation):**
+
+| File | Purpose |
+|------|---------|
+| `apps/backend/api/data_store.py` | JSON data layer: load/save restaurants, images, templates, user_profiles |
+| `apps/backend/data/restaurants.json` | Seed restaurant data (5 restaurants) |
+| `apps/backend/data/restaurant_images.json` | Restaurant images (initially empty) |
+| `apps/backend/data/story_templates.json` | Story templates (initially empty) |
+| `apps/backend/data/user_profiles.json` | User personas (3 profiles) |
+| `apps/backend/api/places.py` | Google Places API (New) helpers: fetch place, resolve photo URL, map to restaurant |
+| `apps/backend/api/image_tagging.py` | Gemini Vision tagging: prompt, parse response, tag_image_from_url |
+| `apps/backend/api/index.py` | All Flask routes: restaurants CRUD, import, images CRUD, tag/tag-all, story-template, user-profiles |
+| `apps/frontend/src/pages/OwnerDashboardPage.tsx` | Owner dashboard: header, image grid, actions (Import/Auto-Tag/Add), story template 3-slot builder |
+
 ### Notes
 
 - Test backend endpoints with `curl` before wiring up the frontend — much faster iteration.
@@ -81,7 +95,7 @@ Dev B is building the **consumer-facing Story Viewer** — the Instagram-style r
 
 ## Tasks
 
-### [ ] 1.0 Google Places API Integration (Backend)
+### [x] 1.0 Google Places API Integration (Backend)
 
 `description`: Build `POST /api/restaurants/import` — the critical data pipeline that imports a restaurant from Google Places API (New), fetches its photos, and saves everything to JSON data files.
 
@@ -98,16 +112,16 @@ The Google Places API (New) is different from the legacy API. Key details:
 
 `testStrategy`: `curl -X POST http://localhost:5000/api/restaurants/import -H "Content-Type: application/json" -d '{"place_id": "ChIJ..."}'` → should return the created restaurant JSON with images.
 
-- [ ] 1.1 Create the `/api/restaurants/import` route in Flask
-- [ ] 1.2 Call Google Places API (New) to fetch restaurant details (`displayName`, `formattedAddress`, `location`, `rating`, `types`, `nationalPhoneNumber`, `websiteUri`, `photos`)
-- [ ] 1.3 Parse the response and map to `restaurants` table fields (`types` → `cuisine_type`, `displayName.text` → `name`, `location.latitude` → `lat`, etc.)
-- [ ] 1.4 Resolve each photo reference to a usable image URL via the Places Photo Media endpoint
-- [ ] 1.5 Append restaurant object to `restaurants.json` via `data_store.save_restaurants()` (handle duplicate `google_place_id` gracefully — upsert or return existing)
-- [ ] 1.6 Append image objects to `restaurant_images.json` with `source='google'`, `slot_type='personalized'`, sequential `display_order`
-- [ ] 1.7 Return the full restaurant object with its images array in the response
-- [ ] 1.8 Test with a real Google Place ID and verify data appears in JSON files and `GET /api/restaurants/<id>` returns it
+- [x] 1.1 Create the `/api/restaurants/import` route in Flask
+- [x] 1.2 Call Google Places API (New) to fetch restaurant details (`displayName`, `formattedAddress`, `location`, `rating`, `types`, `nationalPhoneNumber`, `websiteUri`, `photos`)
+- [x] 1.3 Parse the response and map to `restaurants` table fields (`types` → `cuisine_type`, `displayName.text` → `name`, `location.latitude` → `lat`, etc.)
+- [x] 1.4 Resolve each photo reference to a usable image URL via the Places Photo Media endpoint
+- [x] 1.5 Append restaurant object to `restaurants.json` via `data_store.save_restaurants()` (handle duplicate `google_place_id` gracefully — upsert or return existing)
+- [x] 1.6 Append image objects to `restaurant_images.json` with `source='google'`, `slot_type='personalized'`, sequential `display_order`
+- [x] 1.7 Return the full restaurant object with its images array in the response
+- [x] 1.8 Test with a real Google Place ID and verify data appears in JSON files and `GET /api/restaurants/<id>` returns it
 
-### [ ] 2.0 Gemini Vision Image Tagging (Backend)
+### [x] 2.0 Gemini Vision Image Tagging (Backend)
 
 `description`: Build `POST /api/images/tag` — sends an image to Gemini Vision API and saves AI-generated tags. Also build a batch variant to tag all images for a restaurant.
 
@@ -124,14 +138,14 @@ The Google Places API (New) is different from the legacy API. Key details:
 
 `testStrategy`: `curl -X POST http://localhost:5000/api/images/tag -H "Content-Type: application/json" -d '{"image_id": "uuid-here"}'` → should return `{"tags": ["steak", "romantic", "italian"]}` and update `restaurant_images.json`.
 
-- [ ] 2.1 Add `google-generativeai` to `requirements.txt` if not already present
-- [ ] 2.2 Create `POST /api/images/tag` route — accepts `{"image_id": "..."}`, fetches the image URL from `restaurant_images.json`, sends to Gemini
-- [ ] 2.3 Build the Gemini Vision prompt and parse the JSON array response (handle markdown code fences in response)
-- [ ] 2.4 Update the `tags` field in `restaurant_images.json` via `data_store` with the parsed tags
-- [ ] 2.5 Create `POST /api/restaurants/<id>/images/tag-all` — batch endpoint that tags all untagged images for a restaurant (loop through images, call Gemini for each)
-- [ ] 2.6 Test with a real image URL and verify tags are reasonable and saved to `restaurant_images.json`
+- [x] 2.1 Add `google-generativeai` to `requirements.txt` if not already present
+- [x] 2.2 Create `POST /api/images/tag` route — accepts `{"image_id": "..."}`, fetches the image URL from `restaurant_images.json`, sends to Gemini
+- [x] 2.3 Build the Gemini Vision prompt and parse the JSON array response (handle markdown code fences in response)
+- [x] 2.4 Update the `tags` field in `restaurant_images.json` via `data_store` with the parsed tags
+- [x] 2.5 Create `POST /api/restaurants/<id>/images/tag-all` — batch endpoint that tags all untagged images for a restaurant (loop through images, call Gemini for each)
+- [x] 2.6 Test with a real image URL and verify tags are reasonable and saved to `restaurant_images.json`
 
-### [ ] 3.0 Restaurant CRUD Endpoints (Backend)
+### [x] 3.0 Restaurant CRUD Endpoints (Backend)
 
 `description`: Build standard REST endpoints for listing/reading restaurants and managing images. These are consumed by both the owner dashboard (Dev A) and the story viewer (Dev B).
 
@@ -147,14 +161,14 @@ The Google Places API (New) is different from the legacy API. Key details:
 
 `testStrategy`: Test each endpoint with `curl`. Verify response shape matches the TypeScript interfaces.
 
-- [ ] 3.1 `GET /api/restaurants` — read `restaurants.json` via `data_store`, return JSON array
-- [ ] 3.2 `GET /api/restaurants/<id>` — read single restaurant + its images from `restaurant_images.json`, return combined JSON
-- [ ] 3.3 `PUT /api/restaurants/<id>/images/<image_id>` — accept JSON body with `tags`, `slot_type`, `display_order` (any subset), update in `restaurant_images.json` via `data_store`
-- [ ] 3.4 `DELETE /api/restaurants/<id>/images/<image_id>` — remove from `restaurant_images.json`, return 204
-- [ ] 3.5 `POST /api/restaurants/<id>/images` — accept `{"image_url": "...", "source": "owner_upload"}`, append to `restaurant_images.json`, return created image
-- [ ] 3.6 Verify all endpoints return data matching the TypeScript `Restaurant` and `RestaurantImage` interfaces
+- [x] 3.1 `GET /api/restaurants` — read `restaurants.json` via `data_store`, return JSON array
+- [x] 3.2 `GET /api/restaurants/<id>` — read single restaurant + its images from `restaurant_images.json`, return combined JSON
+- [x] 3.3 `PUT /api/restaurants/<id>/images/<image_id>` — accept JSON body with `tags`, `slot_type`, `display_order` (any subset), update in `restaurant_images.json` via `data_store`
+- [x] 3.4 `DELETE /api/restaurants/<id>/images/<image_id>` — remove from `restaurant_images.json`, return 204
+- [x] 3.5 `POST /api/restaurants/<id>/images` — accept `{"image_url": "...", "source": "owner_upload"}`, append to `restaurant_images.json`, return created image
+- [x] 3.6 Verify all endpoints return data matching the TypeScript `Restaurant` and `RestaurantImage` interfaces
 
-### [ ] 4.0 Story Template Endpoints (Backend)
+### [x] 4.0 Story Template Endpoints (Backend)
 
 `description`: Build CRUD for story templates — the structure that defines which images are intro/outro and what the CTA says.
 
@@ -170,12 +184,12 @@ The Google Places API (New) is different from the legacy API. Key details:
 
 `testStrategy`: `curl -X PUT http://localhost:5000/api/restaurants/{id}/story-template -H "Content-Type: application/json" -d '{"intro_image_id": "...", "outro_image_id": "...", "cta_text": "Reserve Now", "cta_url": "https://..."}'` → should return the saved template.
 
-- [ ] 4.1 `GET /api/restaurants/<id>/story-template` — query `story_templates` by `restaurant_id`, return JSON (or 404)
-- [ ] 4.2 `PUT /api/restaurants/<id>/story-template` — upsert logic: check if template exists for this restaurant, insert or update accordingly
-- [ ] 4.3 Validate that `intro_image_id` and `outro_image_id` reference real images belonging to this restaurant (light validation — just check they exist)
-- [ ] 4.4 Test the full create → read → update cycle with `curl`
+- [x] 4.1 `GET /api/restaurants/<id>/story-template` — query `story_templates` by `restaurant_id`, return JSON (or 404)
+- [x] 4.2 `PUT /api/restaurants/<id>/story-template` — upsert logic: check if template exists for this restaurant, insert or update accordingly
+- [x] 4.3 Validate that `intro_image_id` and `outro_image_id` reference real images belonging to this restaurant (light validation — just check they exist)
+- [x] 4.4 Test the full create → read → update cycle with `curl`
 
-### [ ] 5.0 Owner Dashboard Page (Frontend)
+### [x] 5.0 Owner Dashboard Page (Frontend)
 
 `description`: Build the owner-facing UI at `/owner/:restaurantId` — a functional dashboard for managing restaurant images and building the story template.
 
@@ -192,18 +206,18 @@ The Google Places API (New) is different from the legacy API. Key details:
 
 `testStrategy`: Navigate to `/owner/{restaurant_id}` with a real restaurant ID. Verify: images display, tags show, slot assignment works, import and tagging buttons function.
 
-- [ ] 5.1 Create the `OwnerDashboard` page component at the existing `/owner/:restaurantId` route
-- [ ] 5.2 Fetch restaurant data + images from `GET /api/restaurants/<id>` on mount
-- [ ] 5.3 Display restaurant header: name, address, rating, cuisine types
-- [ ] 5.4 Build the image grid — each card shows thumbnail, tags as pills/chips, slot type badge
-- [ ] 5.5 Add slot assignment dropdown/buttons on each image card (intro / personalized / outro) — calls `PUT /api/restaurants/<id>/images/<image_id>` on change
-- [ ] 5.6 Add "Import from Google Places" button + place_id input — calls `POST /api/restaurants/import`, refreshes image list on success
-- [ ] 5.7 Add "Auto-Tag All Images" button — calls `POST /api/restaurants/<id>/images/tag-all`, refreshes tags on completion (show loading state)
-- [ ] 5.8 Add "Add Image" form (URL input) — calls `POST /api/restaurants/<id>/images`, adds new card to grid
-- [ ] 5.9 Add delete button on each image card — calls `DELETE`, removes card from grid
-- [ ] 5.10 Show tag editing: click a tag to remove it, or type to add new tags — calls `PUT` to update
+- [x] 5.1 Create the `OwnerDashboard` page component at the existing `/owner/:restaurantId` route
+- [x] 5.2 Fetch restaurant data + images from `GET /api/restaurants/<id>` on mount
+- [x] 5.3 Display restaurant header: name, address, rating, cuisine types
+- [x] 5.4 Build the image grid — each card shows thumbnail, tags as pills/chips, slot type badge
+- [x] 5.5 Add slot assignment dropdown/buttons on each image card (intro / personalized / outro) — calls `PUT /api/restaurants/<id>/images/<image_id>` on change
+- [x] 5.6 Add "Import from Google Places" button + place_id input — calls `POST /api/restaurants/import`, refreshes image list on success
+- [x] 5.7 Add "Auto-Tag All Images" button — calls `POST /api/restaurants/<id>/images/tag-all`, refreshes tags on completion (show loading state)
+- [x] 5.8 Add "Add Image" form (URL input) — calls `POST /api/restaurants/<id>/images`, adds new card to grid
+- [x] 5.9 Add delete button on each image card — calls `DELETE`, removes card from grid
+- [x] 5.10 Show tag editing: click a tag to remove it, or type to add new tags — calls `PUT` to update
 
-### [ ] 6.0 Story Template Builder UI (Frontend)
+### [x] 6.0 Story Template Builder UI (Frontend)
 
 `description`: Build the template builder section within the owner dashboard — a visual 3-slot layout where the owner defines the story structure.
 
@@ -221,15 +235,15 @@ The Google Places API (New) is different from the legacy API. Key details:
 
 `testStrategy`: Assign an intro image, an outro image, type CTA text, click save. Verify the template is saved via `GET /api/restaurants/<id>/story-template`.
 
-- [ ] 6.1 Build the 3-slot visual layout below the image grid (Intro → Pool → Outro+CTA)
-- [ ] 6.2 Show the currently assigned intro image (from story template) and outro image with thumbnails
-- [ ] 6.3 Add "Set as Intro" / "Set as Outro" buttons on image cards (updates `slot_type` and the template)
-- [ ] 6.4 Show the personalized pool count: "X images in personalized pool"
-- [ ] 6.5 Add CTA text input and optional CTA URL input
-- [ ] 6.6 Add "Save Template" button — calls `PUT /api/restaurants/<id>/story-template` with current selections
-- [ ] 6.7 Load existing template on page mount and pre-fill the UI
+- [x] 6.1 Build the 3-slot visual layout below the image grid (Intro → Pool → Outro+CTA)
+- [x] 6.2 Show the currently assigned intro image (from story template) and outro image with thumbnails
+- [x] 6.3 Add "Set as Intro" / "Set as Outro" buttons on image cards (updates `slot_type` and the template)
+- [x] 6.4 Show the personalized pool count: "X images in personalized pool"
+- [x] 6.5 Add CTA text input and optional CTA URL input
+- [x] 6.6 Add "Save Template" button — calls `PUT /api/restaurants/<id>/story-template` with current selections
+- [x] 6.7 Load existing template on page mount and pre-fill the UI
 
-### [ ] 7.0 User Profiles Endpoint (Backend)
+### [x] 7.0 User Profiles Endpoint (Backend)
 
 `description`: Build `GET /api/user-profiles` — returns all seeded user personas. Dev B's persona switcher consumes this.
 
@@ -244,9 +258,9 @@ The Google Places API (New) is different from the legacy API. Key details:
 
 `testStrategy`: `curl http://localhost:5000/api/user-profiles` → should return JSON array with 3 profiles matching the `UserProfile` interface.
 
-- [ ] 7.1 Create `GET /api/user-profiles` route
-- [ ] 7.2 Read `user_profiles.json` via `data_store`, return all entries as JSON
-- [ ] 7.3 Verify response shape matches the TypeScript `UserProfile` interface
+- [x] 7.1 Create `GET /api/user-profiles` route
+- [x] 7.2 Read `user_profiles.json` via `data_store`, return all entries as JSON
+- [x] 7.3 Verify response shape matches the TypeScript `UserProfile` interface
 
 ---
 
@@ -266,12 +280,12 @@ The Google Places API (New) is different from the legacy API. Key details:
 
 ## Definition of Done (Phase 1A)
 
-- [ ] A restaurant can be imported from Google Places with photos auto-populated
-- [ ] All images can be auto-tagged via Gemini Vision API
-- [ ] Owner can assign images to intro/personalized/outro slots
-- [ ] Owner can set CTA text and URL
-- [ ] Story template is saved and retrievable via API
-- [ ] All API endpoints return data matching the shared TypeScript interfaces
-- [ ] Dev B can call `GET /api/restaurants/<id>` and get restaurant + images + tags
-- [ ] Dev B can call `GET /api/restaurants/<id>/story-template` and get the template
-- [ ] Dev B can call `GET /api/user-profiles` and get all 3 personas
+- [x] A restaurant can be imported from Google Places with photos auto-populated
+- [x] All images can be auto-tagged via Gemini Vision API
+- [x] Owner can assign images to intro/personalized/outro slots
+- [x] Owner can set CTA text and URL
+- [x] Story template is saved and retrievable via API
+- [x] All API endpoints return data matching the shared TypeScript interfaces
+- [x] Dev B can call `GET /api/restaurants/<id>` and get restaurant + images + tags
+- [x] Dev B can call `GET /api/restaurants/<id>/story-template` and get the template
+- [x] Dev B can call `GET /api/user-profiles` and get all 3 personas
