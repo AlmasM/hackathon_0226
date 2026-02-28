@@ -9,12 +9,18 @@ const API_BASE =
 
 type RestaurantWithImages = Restaurant & { images: RestaurantImage[] };
 
-const SLOT_OPTIONS: Array<RestaurantImage["slot_type"]> = ["intro", "personalized", "outro"];
+const SLOT_OPTIONS: Array<RestaurantImage["slot_type"]> = [
+  "intro",
+  "personalized",
+  "outro",
+];
 
 export default function OwnerDashboardPage() {
   const { restaurantId } = useParams<{ restaurantId: string }>();
   const navigate = useNavigate();
-  const [restaurant, setRestaurant] = useState<RestaurantWithImages | null>(null);
+  const [restaurant, setRestaurant] = useState<RestaurantWithImages | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,9 +66,13 @@ export default function OwnerDashboardPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      // Import returns the restaurant with images; if it's the same id, refresh our view
+      // Import returns the restaurant with images
       if (data.id === restaurantId) {
         setRestaurant({ ...data, images: data.images ?? [] });
+      } else {
+        // New restaurant: navigate to its owner page so the user sees the imported place
+        navigate(`/owner/${data.id}`, { replace: false });
+        return; // navigation will mount the page for data.id
       }
       setImportPlaceId("");
     } catch (e) {
@@ -79,9 +89,12 @@ export default function OwnerDashboardPage() {
     if (!restaurantId) return;
     setTagAllLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/restaurants/${restaurantId}/images/tag-all`, {
-        method: "POST",
-      });
+      const res = await fetch(
+        `${API_BASE}/api/restaurants/${restaurantId}/images/tag-all`,
+        {
+          method: "POST",
+        },
+      );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -104,15 +117,18 @@ export default function OwnerDashboardPage() {
     if (!url || !restaurantId) return;
     setAddImageError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/restaurants/${restaurantId}/images`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image_url: url, source: "owner_upload" }),
-      });
+      const res = await fetch(
+        `${API_BASE}/api/restaurants/${restaurantId}/images`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image_url: url, source: "owner_upload" }),
+        },
+      );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setRestaurant((prev) =>
-        prev ? { ...prev, images: [...(prev.images ?? []), data] } : null
+        prev ? { ...prev, images: [...(prev.images ?? []), data] } : null,
       );
       setNewImageUrl("");
     } catch (e) {
@@ -123,7 +139,7 @@ export default function OwnerDashboardPage() {
   // --- Update image (slot or tags) ---
   async function updateImage(
     imageId: string,
-    patch: { slot_type?: RestaurantImage["slot_type"]; tags?: string[] }
+    patch: { slot_type?: RestaurantImage["slot_type"]; tags?: string[] },
   ) {
     if (!restaurantId || !restaurant) return;
     try {
@@ -133,7 +149,7 @@ export default function OwnerDashboardPage() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(patch),
-        }
+        },
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -145,10 +161,10 @@ export default function OwnerDashboardPage() {
           ? {
               ...prev,
               images: (prev.images ?? []).map((img) =>
-                img.id === imageId ? { ...img, ...updated } : img
+                img.id === imageId ? { ...img, ...updated } : img,
               ),
             }
-          : null
+          : null,
       );
     } catch {
       // could toast
@@ -161,7 +177,7 @@ export default function OwnerDashboardPage() {
     try {
       const res = await fetch(
         `${API_BASE}/api/restaurants/${restaurantId}/images/${imageId}`,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -169,8 +185,11 @@ export default function OwnerDashboardPage() {
       }
       setRestaurant((prev) =>
         prev
-          ? { ...prev, images: (prev.images ?? []).filter((img) => img.id !== imageId) }
-          : null
+          ? {
+              ...prev,
+              images: (prev.images ?? []).filter((img) => img.id !== imageId),
+            }
+          : null,
       );
     } catch {
       // could toast
@@ -211,11 +230,18 @@ export default function OwnerDashboardPage() {
         return res.json();
       })
       .then((data) => {
-        if (!cancelled && data) {
+        if (cancelled) return;
+        if (data) {
           setTemplateIntroId(data.intro_image_id ?? "");
           setTemplateOutroId(data.outro_image_id ?? "");
           setTemplateCtaText(data.cta_text ?? "Book a Table");
           setTemplateCtaUrl(data.cta_url ?? "");
+        } else {
+          // 404 or no template: clear so we don't send stale intro/outro from another restaurant
+          setTemplateIntroId("");
+          setTemplateOutroId("");
+          setTemplateCtaText("Book a Table");
+          setTemplateCtaUrl("");
         }
       })
       .catch(() => {
@@ -259,16 +285,20 @@ export default function OwnerDashboardPage() {
             cta_text: cta_text || "Book a Table",
             cta_url: cta_url || undefined,
           }),
-        }
+        },
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? "Save failed");
       }
-      if (overrides?.intro_image_id !== undefined) setTemplateIntroId(overrides.intro_image_id);
-      if (overrides?.outro_image_id !== undefined) setTemplateOutroId(overrides.outro_image_id);
-      if (overrides?.cta_text !== undefined) setTemplateCtaText(overrides.cta_text);
-      if (overrides?.cta_url !== undefined) setTemplateCtaUrl(overrides.cta_url ?? "");
+      if (overrides?.intro_image_id !== undefined)
+        setTemplateIntroId(overrides.intro_image_id);
+      if (overrides?.outro_image_id !== undefined)
+        setTemplateOutroId(overrides.outro_image_id);
+      if (overrides?.cta_text !== undefined)
+        setTemplateCtaText(overrides.cta_text);
+      if (overrides?.cta_url !== undefined)
+        setTemplateCtaUrl(overrides.cta_url ?? "");
     } finally {
       setTemplateSaving(false);
     }
@@ -314,18 +344,32 @@ export default function OwnerDashboardPage() {
   return (
     <div style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
       {/* 5.3 Restaurant header */}
-      <header style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "1px solid #ccc" }}>
+      <header
+        style={{
+          marginBottom: 24,
+          paddingBottom: 16,
+          borderBottom: "1px solid #ccc",
+        }}
+      >
         <h1 style={{ margin: "0 0 8px 0" }}>{restaurant.name}</h1>
         <p style={{ margin: 0, color: "#555" }}>{restaurant.address}</p>
         <p style={{ margin: "4px 0 0 0" }}>
-          Rating: {restaurant.rating} · Cuisine: {(restaurant.cuisine_type ?? []).join(", ") || "—"}
+          Rating: {restaurant.rating} · Cuisine:{" "}
+          {(restaurant.cuisine_type ?? []).join(", ") || "—"}
         </p>
       </header>
 
       {/* Actions: Import, Auto-Tag, Add Image */}
       <section style={{ marginBottom: 24 }}>
         <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>Actions</h2>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-end" }}>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 16,
+            alignItems: "flex-end",
+          }}
+        >
           <div>
             <label style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
               Import from Google (place_id)
@@ -337,14 +381,14 @@ export default function OwnerDashboardPage() {
               placeholder="ChIJ..."
               style={{ marginRight: 8, padding: "6px 10px", width: 220 }}
             />
-            <button
-              type="button"
-              onClick={handleImport}
-              disabled={importing}
-            >
+            <button type="button" onClick={handleImport} disabled={importing}>
               {importing ? "Importing…" : "Import from Google"}
             </button>
-            {importError && <p style={{ color: "red", margin: "4px 0 0 0", fontSize: 12 }}>{importError}</p>}
+            {importError && (
+              <p style={{ color: "red", margin: "4px 0 0 0", fontSize: 12 }}>
+                {importError}
+              </p>
+            )}
           </div>
           <div>
             <button
@@ -355,7 +399,10 @@ export default function OwnerDashboardPage() {
               {tagAllLoading ? "Tagging…" : "Auto-Tag All"}
             </button>
           </div>
-          <form onSubmit={handleAddImage} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <form
+            onSubmit={handleAddImage}
+            style={{ display: "flex", alignItems: "center", gap: 8 }}
+          >
             <input
               type="url"
               value={newImageUrl}
@@ -364,7 +411,11 @@ export default function OwnerDashboardPage() {
               style={{ padding: "6px 10px", width: 240 }}
             />
             <button type="submit">Add Image</button>
-            {addImageError && <span style={{ color: "red", fontSize: 12 }}>{addImageError}</span>}
+            {addImageError && (
+              <span style={{ color: "red", fontSize: 12 }}>
+                {addImageError}
+              </span>
+            )}
           </form>
         </div>
       </section>
@@ -465,7 +516,12 @@ function ImageCard({
         <img
           src={image.image_url}
           alt=""
-          style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }}
+          style={{
+            width: "100%",
+            height: 140,
+            objectFit: "cover",
+            display: "block",
+          }}
         />
         <span
           style={{
@@ -500,7 +556,9 @@ function ImageCard({
           Delete
         </button>
       </div>
-      <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+      <div
+        style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}
+      >
         <button
           type="button"
           onClick={onSetAsIntro}
@@ -532,10 +590,14 @@ function ImageCard({
           Set as Outro
         </button>
       </div>
-      <label style={{ display: "block", marginBottom: 4, fontSize: 12 }}>Slot</label>
+      <label style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+        Slot
+      </label>
       <select
         value={image.slot_type}
-        onChange={(e) => onSlotChange(e.target.value as RestaurantImage["slot_type"])}
+        onChange={(e) =>
+          onSlotChange(e.target.value as RestaurantImage["slot_type"])
+        }
         style={{ width: "100%", marginBottom: 8, padding: "4px 8px" }}
       >
         {SLOT_OPTIONS.map((s) => (
@@ -545,8 +607,12 @@ function ImageCard({
         ))}
       </select>
       <div style={{ marginBottom: 6 }}>
-        <span style={{ fontSize: 12, marginBottom: 4, display: "block" }}>Tags</span>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
+        <span style={{ fontSize: 12, marginBottom: 4, display: "block" }}>
+          Tags
+        </span>
+        <div
+          style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}
+        >
           {tags.map((t) => (
             <span
               key={t}
@@ -626,11 +692,15 @@ function StoryTemplateSection({
 }) {
   const introImage = images.find((img) => img.id === introId);
   const outroImage = images.find((img) => img.id === outroId);
-  const personalizedCount = images.filter((img) => img.slot_type === "personalized").length;
+  const personalizedCount = images.filter(
+    (img) => img.slot_type === "personalized",
+  ).length;
 
   if (templateLoading) {
     return (
-      <section style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid #ccc" }}>
+      <section
+        style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid #ccc" }}
+      >
         <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>Story template</h2>
         <p>Loading…</p>
       </section>
@@ -638,7 +708,9 @@ function StoryTemplateSection({
   }
 
   return (
-    <section style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid #ccc" }}>
+    <section
+      style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid #ccc" }}
+    >
       <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>Story template</h2>
       {/* 3-slot visual layout: [Intro] → [Personalized pool] → [Outro + CTA + Save] */}
       <div
@@ -661,7 +733,14 @@ function StoryTemplateSection({
             minHeight: 180,
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: "#333" }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              marginBottom: 8,
+              color: "#333",
+            }}
+          >
             Intro image
           </div>
           {introImage ? (
@@ -719,14 +798,23 @@ function StoryTemplateSection({
             minHeight: 180,
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: "#333" }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              marginBottom: 8,
+              color: "#333",
+            }}
+          >
             Personalized pool
           </div>
           <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "#555" }}>
-            {personalizedCount} image{personalizedCount !== 1 ? "s" : ""} in personalized pool
+            {personalizedCount} image{personalizedCount !== 1 ? "s" : ""} in
+            personalized pool
           </p>
           <div style={{ fontSize: 12, color: "#888" }}>
-            Use &quot;Set as Intro&quot; / &quot;Set as Outro&quot; on image cards or the slot dropdown.
+            Use &quot;Set as Intro&quot; / &quot;Set as Outro&quot; on image
+            cards or the slot dropdown.
           </div>
         </div>
 
@@ -740,7 +828,14 @@ function StoryTemplateSection({
             minHeight: 180,
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: "#333" }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              marginBottom: 8,
+              color: "#333",
+            }}
+          >
             Outro image
           </div>
           {outroImage ? (
@@ -777,7 +872,12 @@ function StoryTemplateSection({
           <select
             value={outroId}
             onChange={(e) => setOutroId(e.target.value)}
-            style={{ width: "100%", padding: "6px 8px", fontSize: 12, marginBottom: 12 }}
+            style={{
+              width: "100%",
+              padding: "6px 8px",
+              fontSize: 12,
+              marginBottom: 12,
+            }}
           >
             <option value="">— Select outro —</option>
             {images.map((img) => (
@@ -787,7 +887,9 @@ function StoryTemplateSection({
             ))}
           </select>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ display: "block", marginBottom: 4, fontSize: 12 }}>CTA text</label>
+            <label style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+              CTA text
+            </label>
             <input
               type="text"
               value={ctaText}
@@ -817,7 +919,10 @@ function StoryTemplateSection({
               color: "#fff",
               border: "none",
               borderRadius: 8,
-              cursor: templateSaving || !introId || !outroId ? "not-allowed" : "pointer",
+              cursor:
+                templateSaving || !introId || !outroId
+                  ? "not-allowed"
+                  : "pointer",
             }}
           >
             {templateSaving ? "Saving…" : "Save Template"}

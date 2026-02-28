@@ -4,6 +4,7 @@ Uses a JSON file for persistence so warmup results survive server restarts.
 """
 import json
 import os
+from typing import Optional
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 CACHE_FILE = os.path.join(DATA_DIR, "cached_stories.json")
@@ -41,7 +42,7 @@ def _save_cache(cache: dict) -> None:
     _memory_cache.update(cache)
 
 
-def get_cached_story(restaurant_id: str, user_profile_id: str) -> dict | None:
+def get_cached_story(restaurant_id: str, user_profile_id: str) -> Optional[dict]:
     """Return cached CompiledStory dict if present, else None."""
     cache = _load_cache()
     key = _cache_key(restaurant_id, user_profile_id)

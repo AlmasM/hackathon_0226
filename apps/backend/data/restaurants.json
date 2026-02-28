@@ -7,7 +7,11 @@
     "lat": 40.7618,
     "lng": -73.9818,
     "rating": 4.7,
-    "cuisine_type": ["french", "seafood", "fine_dining"],
+    "cuisine_type": [
+      "french",
+      "seafood",
+      "fine_dining"
+    ],
     "phone": null,
     "website": null
   },
@@ -19,7 +23,11 @@
     "lat": 40.7099,
     "lng": -73.9624,
     "rating": 4.4,
-    "cuisine_type": ["steakhouse", "american", "classic"],
+    "cuisine_type": [
+      "steakhouse",
+      "american",
+      "classic"
+    ],
     "phone": null,
     "website": null
   },
@@ -31,7 +39,11 @@
     "lat": 40.7265,
     "lng": -73.9878,
     "rating": 4.5,
-    "cuisine_type": ["cocktail_bar", "speakeasy", "drinks"],
+    "cuisine_type": [
+      "cocktail_bar",
+      "speakeasy",
+      "drinks"
+    ],
     "phone": null,
     "website": null
   },
@@ -43,7 +55,11 @@
     "lat": 40.7293,
     "lng": -73.9997,
     "rating": 4.3,
-    "cuisine_type": ["vegan", "fast_casual", "healthy"],
+    "cuisine_type": [
+      "vegan",
+      "fast_casual",
+      "healthy"
+    ],
     "phone": null,
     "website": null
   },
@@ -55,8 +71,31 @@
     "lat": 40.7386,
     "lng": -73.9884,
     "rating": 4.6,
-    "cuisine_type": ["american", "new_american", "fine_dining"],
+    "cuisine_type": [
+      "american",
+      "new_american",
+      "fine_dining"
+    ],
     "phone": null,
     "website": null
+  },
+  {
+    "id": "r6947ff33",
+    "google_place_id": "ChIJV7QQ6kdZwokRax4615zpSGU",
+    "name": "Le Bernardin",
+    "address": "155 W 51st St, New York, NY 10019, USA",
+    "lat": 40.7614218,
+    "lng": -73.9817558,
+    "rating": 4.6,
+    "cuisine_type": [
+      "french_restaurant",
+      "fine_dining_restaurant",
+      "restaurant",
+      "point_of_interest",
+      "food",
+      "establishment"
+    ],
+    "phone": "(212) 554-1515",
+    "website": "https://www.le-bernardin.com/home"
   }
 ]

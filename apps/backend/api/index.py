@@ -56,8 +56,16 @@ def import_restaurant():
     try:
         details = fetch_place_details(place_id, api_key)
     except requests.exceptions.HTTPError as e:
-        if e.response is not None and e.response.status_code == 404:
-            return {"error": "Place not found"}, 404
+        if e.response is not None:
+            status = e.response.status_code
+            try:
+                body = e.response.json()
+                msg = body.get("error", {}).get("message") or body.get("message") or e.response.text[:200]
+            except Exception:
+                msg = e.response.text[:200] if e.response.text else str(e)
+            if status == 404:
+                return {"error": "Place not found. Use a current Place ID from Place ID Finder or try ChIJj61dQgK6j4AR4GeTYWZsKWw (Googleplex). Ensure Places API (New) is enabled for your key."}, 404
+            return {"error": f"Google Places API error ({status}): {msg}"}, 502
         return {"error": f"Google Places API error: {e}"}, 502
     except requests.exceptions.RequestException as e:
         return {"error": f"Request failed: {e}"}, 502

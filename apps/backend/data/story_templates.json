@@ -6,5 +6,13 @@
     "cta_text": "Book a Table",
     "cta_url": null,
     "id": "st-ecc27485"
+  },
+  {
+    "restaurant_id": "r6947ff33",
+    "intro_image_id": "c759001d-ce95-4814-95bb-0453edf1132d",
+    "outro_image_id": "029ab939-74bb-4254-8401-32d41326520b",
+    "cta_text": "Book a Table",
+    "cta_url": null,
+    "id": "st-9f810d61"
   }
 ]
