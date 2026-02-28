@@ -37,6 +37,8 @@ export interface RestaurantImage {
   tags: string[];
   slot_type: "intro" | "personalized" | "outro";
   display_order: number;
+  /** Set when a video has been generated from this image (Veo). */
+  generated_video_id?: string;
 }
 
 export interface StoryTemplate {
@@ -74,6 +76,11 @@ export interface StorySegment {
     text: string;
     url: string;
   };
+  /**
+   * When set, this segment is a video (generated from the image via Veo).
+   * The story player plays the video for this segment instead of a static image.
+   */
+  video_id?: string;
 }
 
 export interface CompiledStory {

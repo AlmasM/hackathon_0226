@@ -3,7 +3,7 @@ import uuid
 
 import requests
 from dotenv import load_dotenv
-from flask import Flask, request
+from flask import Flask, request, send_file
 from flask_cors import CORS
 
 from api.cache import get_cache_status, set_cached_story
@@ -11,7 +11,7 @@ from api.data_store import load_restaurants, save_restaurants, load_images, save
 from api.health import get_health_payload
 from api.image_tagging import tag_image_from_url
 from api.personalize import handle_personalize, personalize_story
-from api.places import fetch_place_details, fetch_place_reviews, resolve_photo_url, map_place_to_restaurant
+from api.video_generation import generate_video_from_image_url, get_video_path
 
 load_dotenv()
 
@@ -32,6 +32,105 @@ def index():
         "message": "Hello from Python backend on Vercel",
         "status": "ok",
     }, 200
+
+
+@app.route("/api/restaurants/<restaurant_id>/story/generate-videos", methods=["POST"])
+def generate_story_videos(restaurant_id):
+    """
+    Generate videos for all images used in the story template (intro, outro, and up to 3 personalized).
+    Each story segment is a video: generated MP4s are saved locally and attached to the restaurant images.
+    Each segment is prompted for narrative continuity (one story line): intro → middle → outro, with the
+    same cinematic style so the full story feels like one progressive narrative.
+    Skips images that already have a generated_video_id unless force=true.
+    Body (optional): { "video_prompt": "...", "story_image_ids": ["id1", "id2", ...], "force": false }.
+    If provided, story_image_ids override the saved template. video_prompt is the base style; per-segment
+    continuity prompts are added automatically.
+    Returns { "generated": N, "skipped": M, "errors": [...] }.
+    Long-running: use a client timeout of 5+ minutes.
+    """
+    if not os.getenv("GEMINI_API_KEY") and not os.getenv("GOOGLE_API_KEY"):
+        return {"error": "GEMINI_API_KEY is not set"}, 503
+
+    restaurants = load_restaurants()
+    if not any(r.get("id") == restaurant_id for r in restaurants):
+        return {"error": "Restaurant not found"}, 404
+
+    images = load_images()
+    rest_images = [img for img in images if img.get("restaurant_id") == restaurant_id]
+    by_id = {img["id"]: img for img in rest_images}
+
+    body = request.get_json(silent=True) or {}
+    body_video_prompt = (body.get("video_prompt") or "").strip() or None
+    body_story_image_ids = body.get("story_image_ids")
+    force = body.get("force") is True
+
+    templates = load_templates()
+    template = next((t for t in templates if t.get("restaurant_id") == restaurant_id), None)
+
+    image_ids = []
+    if isinstance(body_story_image_ids, list) and len(body_story_image_ids) > 0:
+        for iid in body_story_image_ids:
+            if iid and iid in by_id:
+                image_ids.append(iid)
+    elif template:
+        story_image_ids = template.get("story_image_ids")
+        if isinstance(story_image_ids, list) and len(story_image_ids) > 0:
+            for iid in story_image_ids:
+                if iid and iid in by_id:
+                    image_ids.append(iid)
+        else:
+            intro_id = (template.get("intro_image_id") or "").strip()
+            outro_id = (template.get("outro_image_id") or "").strip()
+            if intro_id and intro_id in by_id:
+                image_ids.append(intro_id)
+            if outro_id and outro_id in by_id and outro_id not in image_ids:
+                image_ids.append(outro_id)
+            personalized = [img for img in rest_images if img.get("slot_type") == "personalized"]
+            for img in personalized[:3]:
+                if img["id"] not in image_ids:
+                    image_ids.append(img["id"])
+
+    if not image_ids:
+        return {"error": "No story template or images found. Save template and add images to story first."}, 400
+
+    video_prompt = body_video_prompt
+    if video_prompt is None and template:
+        video_prompt = (template.get("video_prompt") or "").strip() or None
+
+    generated = 0
+    skipped = 0
+    errors = []
+
+    total_segments = len(image_ids)
+    for segment_index, image_id in enumerate(image_ids):
+        img = by_id.get(image_id)
+        if not img:
+            continue
+        if not force and img.get("generated_video_id"):
+            skipped += 1
+            continue
+        image_url = img.get("image_url")
+        if not image_url:
+            errors.append({"image_id": image_id, "error": "Image has no image_url"})
+            continue
+        try:
+            video_id, _path = generate_video_from_image_url(
+                image_url,
+                prompt=video_prompt,
+                story_segment_index=segment_index,
+                story_total_segments=total_segments,
+            )
+            # Save locally (MP4 in generated_videos/) and attach to restaurant image
+            for i, x in enumerate(images):
+                if x.get("id") == image_id and x.get("restaurant_id") == restaurant_id:
+                    images[i]["generated_video_id"] = video_id
+                    break
+            save_images(images)
+            generated += 1
+        except Exception as e:
+            errors.append({"image_id": image_id, "error": str(e)})
+
+    return {"generated": generated, "skipped": skipped, "errors": errors}, 200
 
 
 # --- Restaurant import from Google Places (Task 1.0) ---
@@ -305,6 +404,22 @@ def create_restaurant_image(restaurant_id):
 # --- Story template CRUD (Task 4.0) ---
 
 
+@app.get("/api/story-templates")
+@app.get("/story-templates")
+def list_story_templates():
+    """Return all saved story templates (all restaurants)."""
+    templates = load_templates()
+    restaurants = {r["id"]: r for r in load_restaurants()}
+    out = []
+    for t in templates:
+        rid = t.get("restaurant_id")
+        out.append({
+            **t,
+            "restaurant_name": restaurants.get(rid, {}).get("name") if rid else None,
+        })
+    return out, 200
+
+
 @app.get("/api/restaurants/<restaurant_id>/story-template")
 def get_story_template(restaurant_id):
     """4.1 Get story template for a restaurant. Returns StoryTemplate or 404."""
@@ -334,11 +449,20 @@ def upsert_story_template(restaurant_id):
     outro_image_id = (body.get("outro_image_id") or "").strip()
     cta_text = (body.get("cta_text") or "Book a Table").strip() or "Book a Table"
     cta_url = (body.get("cta_url") or "").strip() or None
+    video_prompt = (body.get("video_prompt") or "").strip() or None
+    story_image_ids = body.get("story_image_ids")
+    if isinstance(story_image_ids, list) and len(story_image_ids) > 0:
+        story_image_ids = [str(x).strip() for x in story_image_ids if str(x).strip()]
+        invalid = [i for i in story_image_ids if i not in restaurant_image_ids]
+        if invalid:
+            return {"error": "story_image_ids contains invalid or non-restaurant image ids"}, 400
+        intro_image_id = story_image_ids[0]
+        outro_image_id = story_image_ids[-1] if len(story_image_ids) > 1 else story_image_ids[0]
 
     if not intro_image_id:
-        return {"error": "intro_image_id is required"}, 400
+        return {"error": "intro_image_id or story_image_ids (with at least one id) is required"}, 400
     if not outro_image_id:
-        return {"error": "outro_image_id is required"}, 400
+        return {"error": "outro_image_id or story_image_ids (with at least one id) is required"}, 400
     if intro_image_id not in restaurant_image_ids:
         return {"error": "intro_image_id does not exist or does not belong to this restaurant"}, 400
     if outro_image_id not in restaurant_image_ids:
@@ -353,7 +477,10 @@ def upsert_story_template(restaurant_id):
         "outro_image_id": outro_image_id,
         "cta_text": cta_text,
         "cta_url": cta_url,
+        "video_prompt": video_prompt,
     }
+    if isinstance(story_image_ids, list):
+        payload["story_image_ids"] = story_image_ids
 
     if existing_idx is not None:
         payload["id"] = templates[existing_idx].get("id") or ("st-" + uuid.uuid4().hex[:8])
@@ -440,6 +567,61 @@ def tag_all_restaurant_images(restaurant_id):
         results.append({"id": image_id, "tags": tags})
     save_images(images)
     return {"tagged": len(results), "images": results}, 200
+
+
+# --- Image-to-video (Veo / Gemini API) ---
+
+
+@app.post("/api/restaurants/<restaurant_id>/images/<image_id>/generate-video")
+def generate_video_from_restaurant_image(restaurant_id, image_id):
+    """
+    Generate a short video from a restaurant image using Google Veo image-to-video.
+    Body (optional): { "prompt": "Describe the motion or style" }.
+    Returns { "video_id": "...", "video_url": "/api/generated-videos/<id>" }.
+    Note: Generation can take 1–3 minutes; use a long client timeout.
+    """
+    if not os.getenv("GEMINI_API_KEY") and not os.getenv("GOOGLE_API_KEY"):
+        return {"error": "GEMINI_API_KEY is not set"}, 503
+
+    images = load_images()
+    target = next(
+        (img for img in images if img.get("id") == image_id and img.get("restaurant_id") == restaurant_id),
+        None,
+    )
+    if not target:
+        return {"error": "Image not found"}, 404
+
+    image_url = target.get("image_url")
+    if not image_url:
+        return {"error": "Image has no image_url"}, 400
+
+    body = request.get_json(silent=True) or {}
+    prompt = (body.get("prompt") or "").strip() or None
+
+    try:
+        video_id, _path = generate_video_from_image_url(image_url, prompt=prompt)
+        for img in images:
+            if img.get("id") == image_id and img.get("restaurant_id") == restaurant_id:
+                img["generated_video_id"] = video_id
+                break
+        save_images(images)
+        video_url = f"/api/generated-videos/{video_id}"
+        return {"video_id": video_id, "video_url": video_url}, 201
+    except ValueError as e:
+        return {"error": str(e)}, 400
+    except RuntimeError as e:
+        return {"error": str(e)}, 502
+    except requests.RequestException as e:
+        return {"error": f"Failed to fetch image: {e}"}, 502
+
+
+@app.get("/api/generated-videos/<video_id>")
+def serve_generated_video(video_id):
+    """Serve a generated MP4 video file by ID."""
+    path = get_video_path(video_id)
+    if not path:
+        return {"error": "Video not found"}, 404
+    return send_file(path, mimetype="video/mp4", as_attachment=False)
 
 
 # --- Story personalization (Phase 2) ---

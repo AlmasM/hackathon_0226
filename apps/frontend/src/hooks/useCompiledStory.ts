@@ -10,7 +10,10 @@ import type {
   UserProfile,
 } from "../types";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ??
+  import.meta.env.VITE_API_URL ??
+  "http://localhost:8000";
 const KEN_BURNS: KenBurnsAnimation[] = [
   "ken_burns_zoom_in",
   "ken_burns_zoom_out",
@@ -69,6 +72,7 @@ function compileStory(
       image: introImage,
       duration_ms: 4000,
       animation: KEN_BURNS[animIndex++ % 4],
+      video_id: introImage.generated_video_id,
     });
   }
   for (const img of personalized) {
@@ -77,6 +81,7 @@ function compileStory(
       image: img,
       duration_ms: 4000,
       animation: KEN_BURNS[animIndex++ % 4],
+      video_id: img.generated_video_id,
     });
   }
   if (outroImage && outroImage.id !== introImage?.id) {
@@ -88,6 +93,7 @@ function compileStory(
       cta: template
         ? { text: template.cta_text, url: template.cta_url ?? "" }
         : undefined,
+      video_id: outroImage.generated_video_id,
     });
   } else if (outroImage && segments.length > 0) {
     const last = segments[segments.length - 1];

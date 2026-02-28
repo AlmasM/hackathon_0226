@@ -9,10 +9,18 @@
   },
   {
     "restaurant_id": "r6947ff33",
-    "intro_image_id": "fa39fa8f-c28f-44b1-a29d-076cdf906a0e",
-    "outro_image_id": "094d71aa-25d2-413e-aa6a-b851a4dd75a4",
-    "cta_text": "Intro video",
+    "intro_image_id": "1c1aaf8d-48c0-4717-8fe5-b1c896f76de9",
+    "outro_image_id": "12a90d64-b71d-4a61-b737-43baa2c2d01b",
+    "cta_text": "Intro video 1",
     "cta_url": null,
+    "video_prompt": "Imagine person walking into restaurant for the birthday party .",
+    "story_image_ids": [
+      "1c1aaf8d-48c0-4717-8fe5-b1c896f76de9",
+      "58f6e982-bffd-4dae-8e92-8e1572b212b9",
+      "f0a4d020-cf4d-4eea-a38d-1b2f2e854ae0",
+      "f7192265-025a-4c1a-8aa8-c1f6b1b920d3",
+      "12a90d64-b71d-4a61-b737-43baa2c2d01b"
+    ],
     "id": "st-9f810d61"
   }
 ]

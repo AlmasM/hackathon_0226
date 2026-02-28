@@ -6,6 +6,11 @@ import { useUserProfile } from "../contexts/UserProfileContext";
 import { useCompiledStory } from "../hooks/useCompiledStory";
 import { usePersonalizedStory } from "../hooks/usePersonalizedStory";
 
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ??
+  import.meta.env.VITE_API_URL ??
+  "http://localhost:8000";
+
 function preloadSegmentImages(
   segments: { image: { image_url: string } }[],
 ): Promise<void> {
@@ -52,7 +57,8 @@ export default function RestaurantStoryPage() {
   }
 
   // Use API story when available; otherwise fall back to client-side compilation
-  const story = personalized.story ?? (personalized.error ? fallback.story : null);
+  const story =
+    personalized.story ?? (personalized.error ? fallback.story : null);
   // Show skeleton when personalized is loading, or when we have no story yet and fallback is still fetching (e.g. deep-link before profiles load)
   const loading = personalized.loading || (!story && fallback.loading);
   const error = personalized.error && !fallback.story ? fallback.error : null;
@@ -126,45 +132,6 @@ export default function RestaurantStoryPage() {
 
   return (
     <>
-      {isPreview && !previewBannerDismissed && (
-        <div
-          role="banner"
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 100,
-            background: "rgba(0,0,0,0.85)",
-            color: "#fff",
-            padding: "10px 16px",
-            fontSize: 14,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
-          <span>
-            Owner Preview Mode — switch personas to see different versions.
-          </span>
-          <button
-            type="button"
-            onClick={() => setPreviewBannerDismissed(true)}
-            aria-label="Dismiss"
-            style={{
-              background: "transparent",
-              border: "1px solid #fff",
-              color: "#fff",
-              padding: "4px 12px",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
       {toastVisible && (
         <div
           role="status"
@@ -185,13 +152,48 @@ export default function RestaurantStoryPage() {
           Booking requested! 🎉
         </div>
       )}
-      <StoryPlayer
-        segments={story.segments}
-        restaurant={story.restaurant}
-        onClose={() => navigate(id ? `/restaurant/${id}` : "/")}
-        onCtaClick={handleCtaClick}
-        personaLabel={activeProfile?.name}
-      />
+      {isPreview && !previewBannerDismissed ? (
+        <div className="story-page-with-preview">
+          <div className="story-preview-banner" role="banner">
+            <span className="story-preview-banner__text">
+              Owner Preview Mode — switch personas to see different versions.
+            </span>
+            <button
+              type="button"
+              onClick={() => setPreviewBannerDismissed(true)}
+              className="story-preview-banner__dismiss"
+              aria-label="Dismiss"
+            >
+              Dismiss
+            </button>
+          </div>
+          <div className="story-page-with-preview__player">
+            <StoryPlayer
+              segments={story.segments}
+              restaurant={story.restaurant}
+              onClose={() => {
+                if (isPreview) navigate(-1);
+                else navigate(id ? `/restaurant/${id}` : "/");
+              }}
+              onCtaClick={handleCtaClick}
+              personaLabel={activeProfile?.name}
+              apiBaseUrl={API_BASE}
+            />
+          </div>
+        </div>
+      ) : (
+        <StoryPlayer
+          segments={story.segments}
+          restaurant={story.restaurant}
+          onClose={() => {
+            if (isPreview) navigate(-1);
+            else navigate(id ? `/restaurant/${id}` : "/");
+          }}
+          onCtaClick={handleCtaClick}
+          personaLabel={activeProfile?.name}
+          apiBaseUrl={API_BASE}
+        />
+      )}
     </>
   );
 }

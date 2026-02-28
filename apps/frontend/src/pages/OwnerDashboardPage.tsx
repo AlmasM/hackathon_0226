@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import type { Restaurant, RestaurantImage } from "../types";
+import StoryPlayer from "../components/StoryPlayer";
+import type {
+  KenBurnsAnimation,
+  Restaurant,
+  RestaurantImage,
+  StorySegment,
+} from "../types";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ??
@@ -23,6 +29,63 @@ const SLOT_OPTIONS: Array<RestaurantImage["slot_type"]> = [
   "personalized",
   "outro",
 ];
+
+const KEN_BURNS: KenBurnsAnimation[] = [
+  "ken_burns_zoom_in",
+  "ken_burns_zoom_out",
+  "ken_burns_pan_left",
+  "ken_burns_pan_right",
+];
+
+/** Build story segments for owner preview from current template and images. */
+function buildPreviewSegments(
+  images: RestaurantImage[],
+  introId: string,
+  outroId: string,
+  ctaText: string,
+  ctaUrl: string,
+  orderedIds?: string[],
+): StorySegment[] {
+  const byId = Object.fromEntries(images.map((i) => [i.id, i]));
+  let ids: string[];
+  if (orderedIds && orderedIds.length > 0) {
+    ids = orderedIds.filter((id) => id in byId);
+  } else {
+    const intro = introId && introId in byId ? introId : null;
+    const outro =
+      outroId && outroId in byId && outroId !== intro ? outroId : null;
+    const mid = images
+      .filter(
+        (i) =>
+          i.slot_type === "personalized" && i.id !== intro && i.id !== outro,
+      )
+      .slice(0, 3)
+      .map((i) => i.id);
+    ids = [...(intro ? [intro] : []), ...mid, ...(outro ? [outro] : [])];
+  }
+  if (ids.length === 0) return [];
+  const segments: StorySegment[] = [];
+  let animIndex = 0;
+  for (let i = 0; i < ids.length; i++) {
+    const img = byId[ids[i]];
+    if (!img) continue;
+    const isFirst = i === 0;
+    const isLast = i === ids.length - 1;
+    const type = isFirst ? "intro" : isLast ? "outro" : "personalized";
+    segments.push({
+      type,
+      image: img,
+      duration_ms: 4000,
+      animation: KEN_BURNS[animIndex++ % 4],
+      cta:
+        isLast && (ctaText || ctaUrl)
+          ? { text: ctaText || "Book a Table", url: ctaUrl ?? "" }
+          : undefined,
+      video_id: img.generated_video_id,
+    });
+  }
+  return segments;
+}
 
 export default function OwnerDashboardPage() {
   const { restaurantId } = useParams<{ restaurantId: string }>();
@@ -267,8 +330,12 @@ export default function OwnerDashboardPage() {
   // --- Story template state (lifted for Set as Intro/Outro) ---
   const [templateIntroId, setTemplateIntroId] = useState("");
   const [templateOutroId, setTemplateOutroId] = useState("");
+  const [templateStoryImageIds, setTemplateStoryImageIds] = useState<string[]>(
+    [],
+  );
   const [templateCtaText, setTemplateCtaText] = useState("Book a Table");
   const [templateCtaUrl, setTemplateCtaUrl] = useState("");
+  const [templateVideoPrompt, setTemplateVideoPrompt] = useState("");
   const [templateLoading, setTemplateLoading] = useState(true);
   const [templateSaving, setTemplateSaving] = useState(false);
 
@@ -287,22 +354,39 @@ export default function OwnerDashboardPage() {
         if (data) {
           setTemplateIntroId(data.intro_image_id ?? "");
           setTemplateOutroId(data.outro_image_id ?? "");
+          setTemplateStoryImageIds(
+            Array.isArray(data.story_image_ids) &&
+              data.story_image_ids.length > 0
+              ? data.story_image_ids
+              : [
+                  ...(data.intro_image_id ? [data.intro_image_id] : []),
+                  ...(data.outro_image_id &&
+                  data.outro_image_id !== data.intro_image_id
+                    ? [data.outro_image_id]
+                    : []),
+                ],
+          );
           setTemplateCtaText(data.cta_text ?? "Book a Table");
           setTemplateCtaUrl(data.cta_url ?? "");
+          setTemplateVideoPrompt(data.video_prompt ?? "");
         } else {
           // 404 or no template: clear so we don't send stale intro/outro from another restaurant
           setTemplateIntroId("");
           setTemplateOutroId("");
+          setTemplateStoryImageIds([]);
           setTemplateCtaText("Book a Table");
           setTemplateCtaUrl("");
+          setTemplateVideoPrompt("");
         }
       })
       .catch(() => {
         if (!cancelled) {
           setTemplateIntroId("");
           setTemplateOutroId("");
+          setTemplateStoryImageIds([]);
           setTemplateCtaText("Book a Table");
           setTemplateCtaUrl("");
+          setTemplateVideoPrompt("");
         }
       })
       .finally(() => {
@@ -316,34 +400,57 @@ export default function OwnerDashboardPage() {
   async function putStoryTemplate(overrides?: {
     intro_image_id?: string;
     outro_image_id?: string;
+    story_image_ids?: string[];
     cta_text?: string;
     cta_url?: string;
+    video_prompt?: string;
   }) {
     if (!restaurantId) return;
-    const intro_image_id = overrides?.intro_image_id ?? templateIntroId;
-    const outro_image_id = overrides?.outro_image_id ?? templateOutroId;
+    const story_image_ids =
+      overrides?.story_image_ids !== undefined
+        ? overrides.story_image_ids
+        : templateStoryImageIds;
+    const intro_image_id =
+      overrides?.intro_image_id ??
+      (story_image_ids.length > 0 ? story_image_ids[0] : templateIntroId);
+    const outro_image_id =
+      overrides?.outro_image_id ??
+      (story_image_ids.length > 0
+        ? story_image_ids[story_image_ids.length - 1]
+        : templateOutroId);
     const cta_text = overrides?.cta_text ?? templateCtaText;
     const cta_url = overrides?.cta_url ?? templateCtaUrl;
+    const video_prompt =
+      overrides?.video_prompt !== undefined
+        ? overrides.video_prompt
+        : templateVideoPrompt;
     if (!intro_image_id || !outro_image_id) return;
     setTemplateSaving(true);
     try {
+      const body: Record<string, unknown> = {
+        intro_image_id,
+        outro_image_id,
+        cta_text: cta_text || "Book a Table",
+        cta_url: cta_url || undefined,
+        video_prompt: (video_prompt || "").trim() || undefined,
+      };
+      if (story_image_ids.length > 0) {
+        body.story_image_ids = story_image_ids;
+      }
       const res = await fetch(
         `${API_BASE}/api/restaurants/${restaurantId}/story-template`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            intro_image_id,
-            outro_image_id,
-            cta_text: cta_text || "Book a Table",
-            cta_url: cta_url || undefined,
-          }),
+          body: JSON.stringify(body),
         },
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? "Save failed");
       }
+      if (overrides?.story_image_ids !== undefined)
+        setTemplateStoryImageIds(overrides.story_image_ids);
       if (overrides?.intro_image_id !== undefined)
         setTemplateIntroId(overrides.intro_image_id);
       if (overrides?.outro_image_id !== undefined)
@@ -352,26 +459,131 @@ export default function OwnerDashboardPage() {
         setTemplateCtaText(overrides.cta_text);
       if (overrides?.cta_url !== undefined)
         setTemplateCtaUrl(overrides.cta_url ?? "");
+      if (overrides?.video_prompt !== undefined)
+        setTemplateVideoPrompt(overrides.video_prompt ?? "");
     } finally {
       setTemplateSaving(false);
     }
   }
 
-  async function handleSetAsIntro(imageId: string) {
-    await updateImage(imageId, { slot_type: "intro" });
-    setTemplateIntroId(imageId);
-    await putStoryTemplate({ intro_image_id: imageId });
+  // --- Generate video from image (Veo) ---
+  const [generatingVideoId, setGeneratingVideoId] = useState<string | null>(
+    null,
+  );
+  const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(
+    null,
+  );
+  const [generateVideoError, setGenerateVideoError] = useState<string | null>(
+    null,
+  );
+
+  async function handleGenerateVideo(imageId: string) {
+    if (!restaurantId) return;
+    setGeneratingVideoId(imageId);
+    setGeneratedVideoUrl(null);
+    setGenerateVideoError(null);
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 min
+      const res = await fetch(
+        `${API_BASE}/api/restaurants/${restaurantId}/images/${imageId}/generate-video`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+          signal: controller.signal,
+        },
+      );
+      clearTimeout(timeoutId);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      const videoUrl =
+        data.video_url ?? `/api/generated-videos/${data.video_id}`;
+      setGeneratedVideoUrl(
+        videoUrl.startsWith("http") ? videoUrl : `${API_BASE}${videoUrl}`,
+      );
+      await fetchRestaurant();
+    } catch (e) {
+      setGenerateVideoError(
+        e instanceof Error ? e.message : "Video generation failed",
+      );
+    } finally {
+      setGeneratingVideoId(null);
+    }
   }
 
-  async function handleSetAsOutro(imageId: string) {
-    await updateImage(imageId, { slot_type: "outro" });
-    setTemplateOutroId(imageId);
-    await putStoryTemplate({ outro_image_id: imageId });
+  function closeVideoModal() {
+    setGeneratedVideoUrl(null);
+    setGenerateVideoError(null);
+  }
+
+  // --- Generate videos for entire story template (intro + outro + personalized) ---
+  const [generatingStoryVideos, setGeneratingStoryVideos] = useState(false);
+  const [generateStoryVideosError, setGenerateStoryVideosError] = useState<
+    string | null
+  >(null);
+  // Show story preview only after user clicked "Generate story videos" or "Preview here" on a past story
+  const [showStoryPreview, setShowStoryPreview] = useState(false);
+  const [forceRegenerateVideos, setForceRegenerateVideos] = useState(false);
+
+  async function handleGenerateStoryVideos() {
+    if (!restaurantId) return;
+    const hasOrder =
+      templateStoryImageIds.length > 0 || (templateIntroId && templateOutroId);
+    if (!hasOrder) return;
+    setShowStoryPreview(true); // allow preview to show once generation completes
+    setGeneratingStoryVideos(true);
+    setGenerateStoryVideosError(null);
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15 * 60 * 1000); // 15 min for multiple videos
+      const res = await fetch(
+        `${API_BASE}/api/restaurants/${restaurantId}/story/generate-videos`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            video_prompt: templateVideoPrompt.trim() || undefined,
+            story_image_ids:
+              templateStoryImageIds.length > 0
+                ? templateStoryImageIds
+                : undefined,
+            force: forceRegenerateVideos,
+          }),
+          signal: controller.signal,
+        },
+      );
+      clearTimeout(timeoutId);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      await fetchRestaurant();
+      if (Array.isArray(data.errors) && data.errors.length > 0) {
+        setGenerateStoryVideosError(
+          `${data.generated ?? 0} generated, ${data.errors.length} failed: ${data.errors.map((e: { error?: string }) => e.error).join("; ")}`,
+        );
+      }
+      const generated = data.generated ?? 0;
+      const skipped = data.skipped ?? 0;
+      if (skipped > 0 && generated === 0 && !forceRegenerateVideos) {
+        setGenerateStoryVideosError(
+          `All ${skipped} segment(s) already have videos. Check "Force regenerate" to overwrite.`,
+        );
+      }
+    } catch (e) {
+      setGenerateStoryVideosError(
+        e instanceof Error ? e.message : "Story video generation failed",
+      );
+    } finally {
+      setGeneratingStoryVideos(false);
+    }
   }
 
   if (!restaurantId) {
     return (
-      <div className="owner-dashboard owner-dashboard--error">
+      <div
+        className="owner-dashboard owner-dashboard--error"
+        id="owner-dashboard"
+      >
         <p>Missing restaurant ID</p>
       </div>
     );
@@ -379,7 +591,10 @@ export default function OwnerDashboardPage() {
 
   if (loading) {
     return (
-      <div className="owner-dashboard owner-dashboard--loading">
+      <div
+        className="owner-dashboard owner-dashboard--loading"
+        id="owner-dashboard"
+      >
         <p className="owner-dashboard__loading-text">Loading restaurant…</p>
       </div>
     );
@@ -387,7 +602,10 @@ export default function OwnerDashboardPage() {
 
   if (error) {
     return (
-      <div className="owner-dashboard owner-dashboard--error">
+      <div
+        className="owner-dashboard owner-dashboard--error"
+        id="owner-dashboard"
+      >
         <p className="owner-dashboard__error-text">Error: {error}</p>
         <button
           type="button"
@@ -405,10 +623,24 @@ export default function OwnerDashboardPage() {
   }
 
   const images = restaurant.images ?? [];
+  const orderedIds =
+    templateStoryImageIds.length > 0
+      ? templateStoryImageIds
+      : [templateIntroId, templateOutroId].filter(Boolean);
+  const firstId = orderedIds[0];
+  const lastId = orderedIds[orderedIds.length - 1];
+  const introImage = images.find((img) => img.id === firstId);
+  const outroImage = images.find((img) => img.id === lastId);
+  const canPreviewStory = Boolean(
+    firstId &&
+    lastId &&
+    introImage?.generated_video_id &&
+    outroImage?.generated_video_id,
+  );
 
   return (
-    <div className="owner-dashboard">
-      <header className="owner-dashboard__header">
+    <div className="owner-dashboard" id="owner-dashboard">
+      <header className="owner-dashboard__header" id="owner-dashboard-header">
         <h1 className="owner-dashboard__title">{restaurant.name}</h1>
         <p className="owner-dashboard__address">{restaurant.address}</p>
         <p className="owner-dashboard__meta">
@@ -422,15 +654,57 @@ export default function OwnerDashboardPage() {
         </p>
       </header>
 
-      <section className="owner-dashboard__actions">
-        <h2 className="owner-dashboard__section-title">Actions</h2>
-        <div className="owner-dashboard__action-row">
-          <div className="owner-dashboard__field">
+      <section
+        className="owner-dashboard__actions"
+        id="owner-dashboard-actions"
+        aria-labelledby="owner-dashboard-actions-title"
+      >
+        <h2
+          id="owner-dashboard-actions-title"
+          className="owner-dashboard__section-title"
+        >
+          1. Actions
+        </h2>
+        <div className="owner-dashboard__action-layout">
+          <form
+            onSubmit={handleAddImage}
+            className="owner-dashboard__action-card owner-dashboard__add-image-form"
+            id="owner-dashboard-actions-add-image"
+          >
+            <label className="owner-dashboard__field-label">
+              Add image by URL
+            </label>
+            <div className="owner-dashboard__input-group">
+              <input
+                id="owner-dashboard-new-image-url"
+                type="url"
+                value={newImageUrl}
+                onChange={(e) => setNewImageUrl(e.target.value)}
+                placeholder="https://..."
+                className="owner-dashboard__input"
+              />
+              <button
+                type="submit"
+                id="owner-dashboard-btn-add-image"
+                className="owner-dashboard__btn owner-dashboard__btn--primary"
+              >
+                Add Image
+              </button>
+            </div>
+            {addImageError && (
+              <p className="owner-dashboard__field-error">{addImageError}</p>
+            )}
+          </form>
+          <div
+            className="owner-dashboard__action-card"
+            id="owner-dashboard-actions-import"
+          >
             <label className="owner-dashboard__field-label">
               Import from Google (place_id)
             </label>
             <div className="owner-dashboard__input-group">
               <input
+                id="owner-dashboard-import-place-id"
                 type="text"
                 value={importPlaceId}
                 onChange={(e) => setImportPlaceId(e.target.value)}
@@ -439,6 +713,7 @@ export default function OwnerDashboardPage() {
               />
               <button
                 type="button"
+                id="owner-dashboard-btn-import"
                 onClick={handleImport}
                 disabled={importing}
                 className="owner-dashboard__btn owner-dashboard__btn--primary"
@@ -450,95 +725,81 @@ export default function OwnerDashboardPage() {
               <p className="owner-dashboard__field-error">{importError}</p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={handleTagAll}
-            disabled={tagAllLoading}
-            className="owner-dashboard__btn owner-dashboard__btn--secondary"
+          <div
+            className="owner-dashboard__action-card owner-dashboard__action-card--buttons"
+            id="owner-dashboard-actions-batch"
           >
-            {tagAllLoading ? "Tagging…" : "Auto-Tag All"}
-          </button>
-          <button
-            type="button"
-            onClick={handleSyncAll}
-            disabled={syncAllLoading}
-            className="owner-dashboard__btn owner-dashboard__btn--secondary"
-            title="Fetch name, address, rating, phone, website and photos from Google for every restaurant in the list"
-          >
-            {syncAllLoading ? "Syncing…" : "Sync all restaurants from Google"}
-          </button>
-          {syncAllResult && (
-            <p className="owner-dashboard__field-hint" style={{ marginTop: 8 }}>
-              Synced {syncAllResult.synced} restaurant(s).
-              {syncAllResult.errors.length > 0 &&
-                ` Errors: ${syncAllResult.errors.map((e) => e.name || e.id || e.error).join(", ")}`}
-            </p>
-          )}
-          <form
-            onSubmit={handleAddImage}
-            className="owner-dashboard__field owner-dashboard__add-image-form"
-          >
-            <label className="owner-dashboard__field-label">
-              Add image by URL
-            </label>
-            <div className="owner-dashboard__input-group">
-              <input
-                type="url"
-                value={newImageUrl}
-                onChange={(e) => setNewImageUrl(e.target.value)}
-                placeholder="https://..."
-                className="owner-dashboard__input"
-              />
-              <button
-                type="submit"
-                className="owner-dashboard__btn owner-dashboard__btn--primary"
-              >
-                Add Image
-              </button>
-            </div>
-            {addImageError && (
-              <p className="owner-dashboard__field-error">{addImageError}</p>
+            <button
+              type="button"
+              id="owner-dashboard-btn-tag-all"
+              onClick={handleTagAll}
+              disabled={tagAllLoading}
+              className="owner-dashboard__btn owner-dashboard__btn--secondary"
+            >
+              {tagAllLoading ? "Tagging…" : "Auto-Tag All"}
+            </button>
+            <button
+              type="button"
+              id="owner-dashboard-btn-sync-all"
+              onClick={handleSyncAll}
+              disabled={syncAllLoading}
+              className="owner-dashboard__btn owner-dashboard__btn--secondary"
+              title="Fetch name, address, rating, phone, website and photos from Google for every restaurant in the list"
+            >
+              {syncAllLoading ? "Syncing…" : "Sync all restaurants from Google"}
+            </button>
+            {syncAllResult && (
+              <p className="owner-dashboard__field-hint">
+                Synced {syncAllResult.synced} restaurant(s).
+                {syncAllResult.errors.length > 0 &&
+                  ` Errors: ${syncAllResult.errors.map((e) => e.name || e.id || e.error).join(", ")}`}
+              </p>
             )}
-          </form>
+          </div>
         </div>
       </section>
 
-      <section className="owner-dashboard__images">
-        <h2 className="owner-dashboard__section-title">Images</h2>
-        <div className="owner-dashboard__image-grid">
+      <section
+        className="owner-dashboard__images"
+        id="owner-dashboard-images"
+        aria-labelledby="owner-dashboard-images-title"
+      >
+        <h2
+          id="owner-dashboard-images-title"
+          className="owner-dashboard__section-title"
+        >
+          2. Images
+        </h2>
+        <div
+          className="owner-dashboard__image-grid"
+          id="owner-dashboard-image-grid"
+        >
           {images.map((img) => (
             <ImageCard
               key={img.id}
+              id={`owner-dashboard-image-card-${img.id}`}
               image={img}
               onSlotChange={(slot_type) => updateImage(img.id, { slot_type })}
               onDelete={() => deleteImage(img.id)}
               onRemoveTag={(tag) => removeTag(img, tag)}
               onAddTag={(tag) => addTag(img, tag)}
-              onSetAsIntro={() => handleSetAsIntro(img.id)}
-              onSetAsOutro={() => handleSetAsOutro(img.id)}
             />
           ))}
         </div>
       </section>
 
-      <section className="owner-dashboard__preview">
-        <button
-          type="button"
-          onClick={() =>
-            navigate(`/restaurant/${restaurantId}/story?preview=true`)
-          }
-          className="owner-dashboard__btn owner-dashboard__btn--preview"
-        >
-          Preview Story
-        </button>
-      </section>
       <StoryTemplateSection
+        id="owner-dashboard-story-template"
         restaurantId={restaurantId}
         images={images}
+        storyImageIds={templateStoryImageIds}
+        setStoryImageIds={setTemplateStoryImageIds}
         introId={templateIntroId}
         outroId={templateOutroId}
         ctaText={templateCtaText}
         ctaUrl={templateCtaUrl}
+        videoPrompt={templateVideoPrompt}
+        setVideoPrompt={setTemplateVideoPrompt}
         setIntroId={setTemplateIntroId}
         setOutroId={setTemplateOutroId}
         setCtaText={setTemplateCtaText}
@@ -546,28 +807,190 @@ export default function OwnerDashboardPage() {
         templateLoading={templateLoading}
         templateSaving={templateSaving}
         onSave={() => putStoryTemplate()}
+        onGenerateStoryVideos={handleGenerateStoryVideos}
+        generatingStoryVideos={generatingStoryVideos}
+        generateStoryVideosError={generateStoryVideosError}
+        canPreviewStory={canPreviewStory}
+        apiBaseUrl={API_BASE}
+        onPastStoriesOpen={() => setShowStoryPreview(true)}
+        forceRegenerateVideos={forceRegenerateVideos}
+        onForceRegenerateVideosChange={setForceRegenerateVideos}
       />
+
+      {/* Story preview: only after user clicked Generate story videos or "Preview here" on a past story */}
+      {showStoryPreview &&
+        !generatingStoryVideos &&
+        canPreviewStory &&
+        (() => {
+          const segments = buildPreviewSegments(
+            images,
+            templateIntroId,
+            templateOutroId,
+            templateCtaText,
+            templateCtaUrl,
+            templateStoryImageIds.length > 0
+              ? templateStoryImageIds
+              : undefined,
+          );
+          if (segments.length === 0) return null;
+          return (
+            <OwnerStoryPreview
+              segments={segments}
+              restaurant={restaurant}
+              apiBaseUrl={API_BASE}
+            />
+          );
+        })()}
+
+      {/* Video generation modal */}
+      {(generatedVideoUrl || generateVideoError) && (
+        <div
+          id="owner-dashboard-video-modal"
+          className="owner-dashboard__video-modal"
+          role="dialog"
+          aria-modal
+          aria-labelledby="video-modal-title"
+        >
+          <div className="owner-dashboard__video-modal-backdrop" />
+          <div
+            className="owner-dashboard__video-modal-content"
+            id="owner-dashboard-video-modal-content"
+          >
+            <h2
+              id="video-modal-title"
+              className="owner-dashboard__video-modal-title"
+            >
+              Generated video
+            </h2>
+            <button
+              type="button"
+              className="owner-dashboard__video-modal-close"
+              onClick={closeVideoModal}
+              aria-label="Close"
+            >
+              ×
+            </button>
+            {generateVideoError && (
+              <p className="owner-dashboard__video-modal-error">
+                {generateVideoError}
+              </p>
+            )}
+            {generatedVideoUrl && (
+              <>
+                <video
+                  src={generatedVideoUrl}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="owner-dashboard__video-modal-video"
+                />
+                {canPreviewStory ? (
+                  <button
+                    type="button"
+                    className="owner-dashboard__btn owner-dashboard__btn--primary"
+                    style={{ marginTop: 16 }}
+                    onClick={() => {
+                      closeVideoModal();
+                      navigate(
+                        `/restaurant/${restaurantId}/story?preview=true`,
+                      );
+                    }}
+                  >
+                    Preview in story
+                  </button>
+                ) : (
+                  <p className="owner-dashboard__video-modal-hint">
+                    Save template and run &quot;Generate story videos&quot; to
+                    enable Preview.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {generatingVideoId && (
+        <div
+          id="owner-dashboard-video-generating"
+          className="owner-dashboard__video-generating"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="owner-dashboard__video-generating-backdrop" />
+          <div className="owner-dashboard__video-generating-content">
+            <p>Generating video… This may take 1–3 minutes.</p>
+          </div>
+        </div>
+      )}
+
+      {generatingStoryVideos && (
+        <div
+          id="owner-dashboard-story-videos-generating"
+          className="owner-dashboard__story-videos-generating"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="owner-dashboard__story-videos-generating-backdrop" />
+          <div className="owner-dashboard__story-videos-generating-content">
+            <div className="owner-dashboard__loader" aria-hidden />
+            <p>Loading story…</p>
+            <p className="owner-dashboard__story-videos-generating-hint">
+              Generating videos. The story will open when ready.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// --- Image card: thumbnail, tags, slot badge, slot dropdown, delete, tag edit, Set as Intro/Outro ---
+/** Story preview as its own component (always shown when story is ready). */
+function OwnerStoryPreview({
+  segments,
+  restaurant,
+  apiBaseUrl,
+}: {
+  segments: StorySegment[];
+  restaurant: Restaurant;
+  apiBaseUrl: string;
+}) {
+  return (
+    <div
+      className="owner-dashboard__story-preview-inline"
+      id="owner-dashboard-story-preview-inline"
+    >
+      <p className="owner-dashboard__story-preview-inline-label">
+        Story preview (video)
+      </p>
+      <div className="owner-dashboard__story-preview-inline-player">
+        <StoryPlayer
+          segments={segments}
+          restaurant={restaurant}
+          onClose={() => {}}
+          apiBaseUrl={apiBaseUrl}
+          personaLabel={undefined}
+        />
+      </div>
+    </div>
+  );
+}
+
+// --- Image card: thumbnail, tags, slot badge, slot dropdown, delete, tag edit ---
 function ImageCard({
+  id,
   image,
   onSlotChange,
   onDelete,
   onRemoveTag,
   onAddTag,
-  onSetAsIntro,
-  onSetAsOutro,
 }: {
+  id?: string;
   image: RestaurantImage;
   onSlotChange: (slot: RestaurantImage["slot_type"]) => void;
   onDelete: () => void;
   onRemoveTag: (tag: string) => void;
   onAddTag: (tag: string) => void;
-  onSetAsIntro: () => void;
-  onSetAsOutro: () => void;
 }) {
   const [newTag, setNewTag] = useState("");
 
@@ -575,7 +998,7 @@ function ImageCard({
   const showImage = !isPlaceholderOrInvalidImageUrl(image.image_url);
 
   return (
-    <div className="owner-image-card">
+    <div className="owner-image-card" id={id}>
       <div className="owner-image-card__media">
         {showImage ? (
           <img
@@ -594,22 +1017,6 @@ function ImageCard({
           aria-label="Delete image"
         >
           Delete
-        </button>
-      </div>
-      <div className="owner-image-card__actions">
-        <button
-          type="button"
-          onClick={onSetAsIntro}
-          className="owner-image-card__btn owner-image-card__btn--intro"
-        >
-          Set as Intro
-        </button>
-        <button
-          type="button"
-          onClick={onSetAsOutro}
-          className="owner-image-card__btn owner-image-card__btn--outro"
-        >
-          Set as Outro
         </button>
       </div>
       <label className="owner-image-card__label">Slot</label>
@@ -671,14 +1078,19 @@ function ImageCard({
   );
 }
 
-// --- Story template section: 3-slot layout [Intro] → [Personalized pool] → [Outro + CTA + Save] ---
+// --- Story template section: drag-and-drop image grid for story order ---
 function StoryTemplateSection({
+  id: sectionId,
   restaurantId,
   images,
+  storyImageIds,
+  setStoryImageIds,
   introId,
   outroId,
   ctaText,
   ctaUrl,
+  videoPrompt,
+  setVideoPrompt,
   setIntroId,
   setOutroId,
   setCtaText,
@@ -686,13 +1098,26 @@ function StoryTemplateSection({
   templateLoading,
   templateSaving,
   onSave,
+  onGenerateStoryVideos,
+  generatingStoryVideos,
+  generateStoryVideosError,
+  canPreviewStory,
+  apiBaseUrl,
+  onPastStoriesOpen,
+  forceRegenerateVideos,
+  onForceRegenerateVideosChange,
 }: {
+  id?: string;
   restaurantId: string;
   images: RestaurantImage[];
+  storyImageIds: string[];
+  setStoryImageIds: (ids: string[]) => void;
   introId: string;
   outroId: string;
   ctaText: string;
   ctaUrl: string;
+  videoPrompt: string;
+  setVideoPrompt: (v: string) => void;
   setIntroId: (id: string) => void;
   setOutroId: (id: string) => void;
   setCtaText: (v: string) => void;
@@ -700,131 +1125,406 @@ function StoryTemplateSection({
   templateLoading: boolean;
   templateSaving: boolean;
   onSave: () => Promise<void>;
+  onGenerateStoryVideos?: () => void;
+  generatingStoryVideos?: boolean;
+  generateStoryVideosError?: string | null;
+  canPreviewStory?: boolean;
+  apiBaseUrl: string;
+  onPastStoriesOpen?: () => void;
+  forceRegenerateVideos?: boolean;
+  onForceRegenerateVideosChange?: (value: boolean) => void;
 }) {
-  const introImage = images.find((img) => img.id === introId);
-  const outroImage = images.find((img) => img.id === outroId);
-  const personalizedCount = images.filter(
-    (img) => img.slot_type === "personalized",
-  ).length;
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showPastStories, setShowPastStories] = useState(false);
+  const [allTemplates, setAllTemplates] = useState<
+    Array<{
+      id?: string;
+      restaurant_id: string;
+      restaurant_name?: string;
+      intro_image_id?: string;
+      outro_image_id?: string;
+      story_image_ids?: string[];
+      cta_text?: string;
+      cta_url?: string;
+      video_prompt?: string;
+    }>
+  >([]);
+  const [allTemplatesLoading, setAllTemplatesLoading] = useState(false);
+  const byId = Object.fromEntries(images.map((i) => [i.id, i]));
+  const orderedImages = storyImageIds
+    .map((id) => byId[id])
+    .filter(Boolean) as RestaurantImage[];
+
+  function handleDragStart(e: React.DragEvent, index: number) {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }
+
+  function handleDrop(e: React.DragEvent, dropIndex: number) {
+    e.preventDefault();
+    setDraggedIndex(null);
+    const fromIndex = Number(e.dataTransfer.getData("text/plain"));
+    if (Number.isNaN(fromIndex) || fromIndex === dropIndex) return;
+    const next = [...storyImageIds];
+    const [removed] = next.splice(fromIndex, 1);
+    next.splice(dropIndex, 0, removed);
+    setStoryImageIds(next);
+  }
+
+  function handleRemoveFromStory(index: number) {
+    const next = storyImageIds.filter((_, i) => i !== index);
+    setStoryImageIds(next);
+  }
+
+  function handleAddToStory(imageId: string) {
+    if (storyImageIds.includes(imageId)) return;
+    setStoryImageIds([...storyImageIds, imageId]);
+  }
+
+  const availableToAdd = images.filter(
+    (img) => !storyImageIds.includes(img.id),
+  );
+  const hasOrder = storyImageIds.length > 0 || (introId && outroId);
+
+  useEffect(() => {
+    if (!showTemplates || !apiBaseUrl) return;
+    setAllTemplatesLoading(true);
+    fetch(`${apiBaseUrl}/api/story-templates`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setAllTemplates(Array.isArray(data) ? data : []))
+      .catch(() => setAllTemplates([]))
+      .finally(() => setAllTemplatesLoading(false));
+  }, [showTemplates, apiBaseUrl]);
 
   if (templateLoading) {
     return (
-      <section className="story-template-section story-template-section--loading">
-        <h2 className="story-template-section__title">Story template</h2>
+      <section
+        className="story-template-section story-template-section--loading"
+        id={sectionId ?? "story-template-section"}
+      >
+        <h2 className="story-template-section__title">3. Story template</h2>
         <p className="story-template-section__loading-text">Loading…</p>
       </section>
     );
   }
 
   return (
-    <section className="story-template-section">
-      <h2 className="story-template-section__title">Story template</h2>
+    <section
+      className="story-template-section"
+      id={sectionId ?? "story-template-section"}
+      aria-labelledby="story-template-section-title"
+    >
+      <h2
+        id="story-template-section-title"
+        className="story-template-section__title"
+      >
+        3. Story template
+      </h2>
       <p className="story-template-section__description">
-        Define the order of your story: opening image, personalized middle, and
-        closing with a call-to-action.
+        Drag images to set the story order. First = intro, last = outro.
       </p>
-      <div className="story-template-section__grid">
-        <div className="story-template-card story-template-card--intro">
-          <span className="story-template-card__step">1</span>
-          <h3 className="story-template-card__label">Intro image</h3>
-          {introImage &&
-          !isPlaceholderOrInvalidImageUrl(introImage.image_url) ? (
-            <img
-              src={introImage.image_url}
-              alt="Intro"
-              className="story-template-card__thumb"
-            />
-          ) : (
-            <div className="story-template-card__placeholder">
-              {introImage ? "Your image here" : "No intro selected"}
+      <div
+        className="story-template-section__video-prompt"
+        id="story-template-video-prompt"
+      >
+        <label
+          htmlFor="story-template-video-prompt-input"
+          className="story-template-section__video-prompt-label"
+        >
+          Video prompt (Google Veo 3.1 Fast)
+        </label>
+        <p className="story-template-section__video-prompt-hint">
+          This prompt is used with each image when generating story videos.
+        </p>
+        <textarea
+          id="story-template-video-prompt-input"
+          value={videoPrompt}
+          onChange={(e) => setVideoPrompt(e.target.value)}
+          placeholder="e.g. Smooth, cinematic motion. The scene comes gently to life with subtle movement and appetizing atmosphere."
+          className="story-template-section__video-prompt-input"
+          rows={3}
+        />
+      </div>
+
+      <div
+        className="story-template-section__order-grid"
+        id="story-template-order-grid"
+      >
+        {orderedImages.map((img, index) => {
+          const showImage = !isPlaceholderOrInvalidImageUrl(img.image_url);
+          return (
+            <div
+              key={img.id}
+              className={`story-template-order-card ${draggedIndex === index ? "story-template-order-card--dragging" : ""}`}
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragEnd={() => setDraggedIndex(null)}
+            >
+              <span className="story-template-order-card__handle" aria-hidden>
+                ⋮⋮
+              </span>
+              {showImage ? (
+                <img
+                  src={img.image_url}
+                  alt=""
+                  className="story-template-order-card__thumb"
+                />
+              ) : (
+                <div className="story-template-order-card__placeholder">
+                  No image
+                </div>
+              )}
+              <span className="story-template-order-card__position">
+                {index + 1}
+              </span>
+              <button
+                type="button"
+                className="story-template-order-card__remove"
+                onClick={() => handleRemoveFromStory(index)}
+                aria-label="Remove from story"
+              >
+                ×
+              </button>
             </div>
-          )}
+          );
+        })}
+      </div>
+
+      {availableToAdd.length > 0 && (
+        <div className="story-template-section__add">
+          <label className="story-template-section__add-label">
+            Add image to story
+          </label>
           <select
-            value={introId}
-            onChange={(e) => setIntroId(e.target.value)}
-            className="story-template-card__select"
-            aria-label="Choose intro image"
+            className="story-template-section__add-select"
+            value=""
+            onChange={(e) => {
+              const id = e.target.value;
+              if (id) handleAddToStory(id);
+              e.target.value = "";
+            }}
+            aria-label="Add image to story"
           >
-            <option value="">— Select intro —</option>
-            {images.map((img) => (
+            <option value="">— Select —</option>
+            {availableToAdd.map((img) => (
               <option key={img.id} value={img.id}>
                 {img.slot_type} – {img.id.slice(0, 8)}
               </option>
             ))}
           </select>
         </div>
+      )}
 
-        <div className="story-template-card story-template-card--pool">
-          <span className="story-template-card__step">2</span>
-          <h3 className="story-template-card__label">Personalized pool</h3>
-          <p className="story-template-card__count">
-            {personalizedCount} image{personalizedCount !== 1 ? "s" : ""}
-          </p>
-          <p className="story-template-card__hint">
-            Use &quot;Set as Intro&quot; / &quot;Set as Outro&quot; on image
-            cards above to assign the first and last frame.
-          </p>
+      <div className="story-template-section__cta-fields">
+        <div className="story-template-card__field">
+          <label className="story-template-card__field-label">CTA text</label>
+          <input
+            type="text"
+            value={ctaText}
+            onChange={(e) => setCtaText(e.target.value)}
+            className="story-template-card__input"
+            placeholder="e.g. Book a Table"
+          />
         </div>
+        <div className="story-template-card__field">
+          <label className="story-template-card__field-label">
+            CTA URL (optional)
+          </label>
+          <input
+            type="url"
+            value={ctaUrl}
+            onChange={(e) => setCtaUrl(e.target.value)}
+            className="story-template-card__input"
+            placeholder="https://..."
+          />
+        </div>
+      </div>
 
-        <div className="story-template-card story-template-card--outro">
-          <span className="story-template-card__step">3</span>
-          <h3 className="story-template-card__label">Outro & CTA</h3>
-          {outroImage &&
-          !isPlaceholderOrInvalidImageUrl(outroImage.image_url) ? (
-            <img
-              src={outroImage.image_url}
-              alt="Outro"
-              className="story-template-card__thumb"
-            />
+      <div className="story-template-section__save-actions">
+        <button
+          type="button"
+          onClick={onSave}
+          id="story-template-btn-save"
+          disabled={templateSaving || storyImageIds.length === 0}
+          className="story-template-card__save"
+        >
+          {templateSaving ? "Saving…" : "Save template"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowTemplates(!showTemplates)}
+          className="owner-dashboard__btn owner-dashboard__btn--secondary"
+          id="story-template-btn-show-templates"
+        >
+          {showTemplates ? "Hide templates" : "Show templates"}
+        </button>
+      </div>
+      {showTemplates && (
+        <div
+          className="story-template-section__template-summary"
+          id="story-template-summary"
+        >
+          <p className="story-template-section__template-summary-label">
+            All saved templates
+          </p>
+          {allTemplatesLoading ? (
+            <p className="story-template-section__template-summary-meta">
+              Loading…
+            </p>
+          ) : allTemplates.length === 0 ? (
+            <p className="story-template-section__template-summary-meta">
+              No saved templates yet.
+            </p>
           ) : (
-            <div className="story-template-card__placeholder">
-              {outroImage ? "Your image here" : "No outro selected"}
-            </div>
+            <ul className="story-template-section__template-list">
+              {allTemplates.map((t) => {
+                const orderCount =
+                  (t.story_image_ids ?? []).length ||
+                  (t.intro_image_id && t.outro_image_id ? 2 : 0);
+                return (
+                  <li
+                    key={t.id ?? t.restaurant_id}
+                    className="story-template-section__template-item"
+                  >
+                    <span className="story-template-section__template-item-name">
+                      {t.restaurant_name ?? t.restaurant_id ?? "—"}
+                    </span>
+                    <span className="story-template-section__template-item-meta">
+                      Order: {orderCount} image{orderCount !== 1 ? "s" : ""}
+                    </span>
+                    <span className="story-template-section__template-item-cta">
+                      CTA: {t.cta_text ?? "—"}
+                    </span>
+                    <span className="story-template-section__template-item-prompt">
+                      Prompt: {(t.video_prompt || "—").slice(0, 60)}
+                      {(t.video_prompt?.length ?? 0) > 60 ? "…" : ""}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           )}
-          <select
-            value={outroId}
-            onChange={(e) => setOutroId(e.target.value)}
-            className="story-template-card__select"
-            aria-label="Choose outro image"
-          >
-            <option value="">— Select outro —</option>
-            {images.map((img) => (
-              <option key={img.id} value={img.id}>
-                {img.slot_type} – {img.id.slice(0, 8)}
-              </option>
-            ))}
-          </select>
-          <div className="story-template-card__field">
-            <label className="story-template-card__field-label">CTA text</label>
-            <input
-              type="text"
-              value={ctaText}
-              onChange={(e) => setCtaText(e.target.value)}
-              className="story-template-card__input"
-              placeholder="e.g. Book a Table"
-            />
-          </div>
-          <div className="story-template-card__field">
-            <label className="story-template-card__field-label">
-              CTA URL (optional)
-            </label>
-            <input
-              type="url"
-              value={ctaUrl}
-              onChange={(e) => setCtaUrl(e.target.value)}
-              className="story-template-card__input"
-              placeholder="https://..."
-            />
-          </div>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={templateSaving || !introId || !outroId}
-            className="story-template-card__save"
-          >
-            {templateSaving ? "Saving…" : "Save template"}
-          </button>
         </div>
+      )}
+
+      <div className="story-template-section__past-stories-wrap">
+        <button
+          type="button"
+          onClick={() => setShowPastStories(!showPastStories)}
+          className="owner-dashboard__btn owner-dashboard__btn--secondary"
+          id="story-template-btn-past-stories"
+        >
+          {showPastStories ? "Hide past stories" : "Past stories"}
+        </button>
+        {showPastStories && (
+          <div
+            className="story-template-section__past-stories"
+            id="story-template-past-stories"
+          >
+            <p className="story-template-section__past-stories-label">
+              Generated videos (story segments)
+            </p>
+            {images.filter((img) => img.generated_video_id).length === 0 ? (
+              <p className="story-template-section__past-stories-empty">
+                No generated videos yet.
+              </p>
+            ) : (
+              <ul className="story-template-section__past-stories-list">
+                {images
+                  .filter((img) => img.generated_video_id)
+                  .map((img) => (
+                    <li
+                      key={img.id}
+                      className="story-template-section__past-stories-item"
+                    >
+                      {!isPlaceholderOrInvalidImageUrl(img.image_url) ? (
+                        <img
+                          src={img.image_url}
+                          alt=""
+                          className="story-template-section__past-stories-thumb"
+                        />
+                      ) : (
+                        <div className="story-template-section__past-stories-thumb story-template-section__past-stories-thumb--placeholder">
+                          —
+                        </div>
+                      )}
+                      <a
+                        href={`${apiBaseUrl}/api/generated-videos/${img.generated_video_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="story-template-section__past-stories-play"
+                      >
+                        Play video
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => onPastStoriesOpen?.()}
+                        className="story-template-section__past-stories-preview"
+                      >
+                        Preview here
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div
+        className="story-template-section__generate"
+        id="story-template-generate"
+      >
+        {generatingStoryVideos && (
+          <p className="story-template-section__generate-loading" role="status">
+            Loading story…
+          </p>
+        )}
+        <p className="story-template-section__generate-hint">
+          After saving the template, generate videos for each image in order.
+          This may take several minutes.
+        </p>
+        {onForceRegenerateVideosChange && (
+          <label className="story-template-section__force-regenerate">
+            <input
+              type="checkbox"
+              checked={forceRegenerateVideos ?? false}
+              onChange={(e) => onForceRegenerateVideosChange(e.target.checked)}
+              aria-label="Force regenerate all videos (overwrite existing)"
+            />
+            Force regenerate (overwrite existing videos)
+          </label>
+        )}
+        <button
+          type="button"
+          id="owner-dashboard-btn-generate-story-videos"
+          onClick={onGenerateStoryVideos}
+          disabled={
+            !hasOrder ||
+            templateSaving ||
+            generatingStoryVideos ||
+            !onGenerateStoryVideos
+          }
+          className="owner-dashboard__btn owner-dashboard__btn--generate-videos"
+        >
+          {generatingStoryVideos
+            ? "Generating story videos…"
+            : "Generate story videos"}
+        </button>
+        {generateStoryVideosError && (
+          <p className="owner-dashboard__field-error">
+            {generateStoryVideosError}
+          </p>
+        )}
       </div>
     </section>
   );

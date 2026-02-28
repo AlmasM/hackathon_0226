@@ -111,21 +111,27 @@ def build_compiled_story(
     segments = []
     anim_idx = 0
     # Intro
-    segments.append({
+    seg_intro = {
         "type": "intro",
         "image": intro_image,
         "duration_ms": SEGMENT_DURATION_MS,
         "animation": ANIMATIONS[anim_idx % len(ANIMATIONS)],
-    })
+    }
+    if intro_image.get("generated_video_id"):
+        seg_intro["video_id"] = intro_image["generated_video_id"]
+    segments.append(seg_intro)
     anim_idx += 1
     # Personalized
     for img in personalized_images:
-        segments.append({
+        seg = {
             "type": "personalized",
             "image": img,
             "duration_ms": SEGMENT_DURATION_MS,
             "animation": ANIMATIONS[anim_idx % len(ANIMATIONS)],
-        })
+        }
+        if img.get("generated_video_id"):
+            seg["video_id"] = img["generated_video_id"]
+        segments.append(seg)
         anim_idx += 1
     # Outro with CTA
     cta = None
@@ -134,13 +140,16 @@ def build_compiled_story(
             "text": (template.get("cta_text") or "Visit us!").strip(),
             "url": (template.get("cta_url") or "").strip() or "",
         }
-    segments.append({
+    seg_outro = {
         "type": "outro",
         "image": outro_image,
         "duration_ms": SEGMENT_DURATION_MS,
         "animation": ANIMATIONS[anim_idx % len(ANIMATIONS)],
         "cta": cta,
-    })
+    }
+    if outro_image.get("generated_video_id"):
+        seg_outro["video_id"] = outro_image["generated_video_id"]
+    segments.append(seg_outro)
     return {"restaurant": rest_out, "segments": segments}
 
 
@@ -214,21 +223,29 @@ def handle_personalize(restaurant_id: str, body: dict) -> tuple[dict, int]:
     # Cache check first (Task 1.12 / 6.2)
     cached = get_cached_story(restaurant_id, user_profile_id)
     if cached is not None:
-        return cached, 200
+        story = cached
+    else:
+        # Validate restaurant exists
+        restaurants = load_restaurants()
+        if not any(r.get("id") == restaurant_id for r in restaurants):
+            return {"error": "Restaurant not found"}, 404
 
-    # Validate restaurant exists
-    restaurants = load_restaurants()
-    if not any(r.get("id") == restaurant_id for r in restaurants):
-        return {"error": "Restaurant not found"}, 404
+        # Validate user profile exists
+        profiles = load_user_profiles()
+        if not any(p.get("id") == user_profile_id for p in profiles):
+            return {"error": "User profile not found"}, 404
 
-    # Validate user profile exists
-    profiles = load_user_profiles()
-    if not any(p.get("id") == user_profile_id for p in profiles):
-        return {"error": "User profile not found"}, 404
+        story = personalize_story(restaurant_id, user_profile_id)
+        if story is None:
+            return {"error": "Could not build story"}, 500
+        set_cached_story(restaurant_id, user_profile_id, story)
 
-    story = personalize_story(restaurant_id, user_profile_id)
-    if story is None:
-        return {"error": "Could not build story"}, 500
+    # Enrich segments with current video_id from images (cached and fresh get latest videos)
+    images = load_images()
+    by_img_id = {img["id"]: img for img in images if img.get("id")}
+    for seg in story.get("segments") or []:
+        img_id = (seg.get("image") or {}).get("id")
+        if img_id and by_img_id.get(img_id, {}).get("generated_video_id"):
+            seg["video_id"] = by_img_id[img_id]["generated_video_id"]
 
-    set_cached_story(restaurant_id, user_profile_id, story)
     return story, 200

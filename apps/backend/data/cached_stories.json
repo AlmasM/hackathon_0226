@@ -78,5 +78,102 @@
         }
       }
     ]
+  },
+  "r6947ff33:up1": {
+    "restaurant": {
+      "id": "r6947ff33",
+      "google_place_id": "ChIJV7QQ6kdZwokRax4615zpSGU",
+      "name": "Le Bernardin",
+      "address": "155 W 51st St, New York, NY 10019, USA",
+      "lat": 40.7614218,
+      "lng": -73.9817558,
+      "rating": 4.6,
+      "cuisine_type": [
+        "french_restaurant",
+        "fine_dining_restaurant",
+        "restaurant",
+        "food",
+        "point_of_interest",
+        "establishment"
+      ],
+      "phone": "(212) 554-1515",
+      "website": "https://www.le-bernardin.com/home"
+    },
+    "segments": [
+      {
+        "type": "intro",
+        "image": {
+          "id": "b1f68fea-b61d-40d8-8a6c-00deec571f7a",
+          "restaurant_id": "r6947ff33",
+          "image_url": "https://lh3.googleusercontent.com/places/ANXAkqGx9nhIiTZSA1XKIfXldG_zEjiYd9RWiAGjWPAVrHo0AX0AznA-IzObz7mfqcAW9U8ukgqVMpv_go-xPGmyerbd12eQGbW5weo=s4800-w800",
+          "source": "google",
+          "tags": [],
+          "slot_type": "personalized",
+          "display_order": 0
+        },
+        "duration_ms": 5000,
+        "animation": "ken_burns_zoom_in"
+      },
+      {
+        "type": "personalized",
+        "image": {
+          "id": "b1f68fea-b61d-40d8-8a6c-00deec571f7a",
+          "restaurant_id": "r6947ff33",
+          "image_url": "https://lh3.googleusercontent.com/places/ANXAkqGx9nhIiTZSA1XKIfXldG_zEjiYd9RWiAGjWPAVrHo0AX0AznA-IzObz7mfqcAW9U8ukgqVMpv_go-xPGmyerbd12eQGbW5weo=s4800-w800",
+          "source": "google",
+          "tags": [],
+          "slot_type": "personalized",
+          "display_order": 0
+        },
+        "duration_ms": 5000,
+        "animation": "ken_burns_pan_right"
+      },
+      {
+        "type": "personalized",
+        "image": {
+          "id": "3bed1ccd-7b0f-489e-8fe7-b67d98ba7d0e",
+          "restaurant_id": "r6947ff33",
+          "image_url": "https://lh3.googleusercontent.com/places/ANXAkqFc6kIgCYDuuutW_LggNmCwqYxBgSPsrk3ia1QLuPVhg4BlxjUZvU-5J5fO2l5w6yuWookqWooE0m18e4FvECUW6qzr-PgntYg=s4800-w800",
+          "source": "google",
+          "tags": [],
+          "slot_type": "personalized",
+          "display_order": 1
+        },
+        "duration_ms": 5000,
+        "animation": "ken_burns_zoom_out"
+      },
+      {
+        "type": "personalized",
+        "image": {
+          "id": "db091012-f8ea-42e2-b6cc-78f8f611e128",
+          "restaurant_id": "r6947ff33",
+          "image_url": "https://lh3.googleusercontent.com/place-photos/AL8-SNE0JQMdhhYog2E_kHp7EpgY_7VZSIaW6vsHSM_1uyaGzQltkqE84uw4f46_U_0DjrVffNI4L3QkIS1ThPIRZXsSFFMyTzz6rkdDhTX52YpfGRPvlLq1bY0Q1mEcvZ4d_IbJbtC87_Jb1aSJU4UyQNT59w=s4800-w800",
+          "source": "google",
+          "tags": [],
+          "slot_type": "personalized",
+          "display_order": 2
+        },
+        "duration_ms": 5000,
+        "animation": "ken_burns_pan_left"
+      },
+      {
+        "type": "outro",
+        "image": {
+          "id": "d70b065d-9629-4985-8c57-6b704cdab398",
+          "restaurant_id": "r6947ff33",
+          "image_url": "https://lh3.googleusercontent.com/place-photos/AL8-SNGiaG8ODAgjx6OYt1uDkcL2DSXc7cIQYH1WV_J8tqTxB-qmxm5uL_bAQFFw7Lr_QaW20RdkTdwWPU2eMKMoyo2Qw_HRjfkf6Lh7vHc-fD2vrPITf4u7ffehPGkhYyMUG-a9tklDU9rIuYpuOMjwpWAYEQ=s4800-w800",
+          "source": "google",
+          "tags": [],
+          "slot_type": "personalized",
+          "display_order": 4
+        },
+        "duration_ms": 5000,
+        "animation": "ken_burns_zoom_in",
+        "cta": {
+          "text": "Intro video",
+          "url": ""
+        }
+      }
+    ]
   }
 }
