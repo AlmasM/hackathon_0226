@@ -1,6 +1,6 @@
 {
   "framework": null,
-  "buildCommand": "npm install && npm run build:frontend",
+  "buildCommand": "npm install && nx build frontend",
   "outputDirectory": "apps/frontend/dist",
   "functions": {
     "apps/backend/api/index.py": {

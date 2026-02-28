@@ -5,8 +5,14 @@
     "apps/frontend"
   ],
   "scripts": {
-    "dev:frontend": "npm run dev --workspace @hackathon/frontend",
-    "build:frontend": "npm run build --workspace @hackathon/frontend",
+    "nx": "nx",
+    "dev:frontend": "nx serve frontend",
+    "dev:backend": "nx serve backend",
+    "dev": "nx run-many -t serve --projects=frontend,backend --parallel=2",
+    "build:frontend": "nx build frontend",
     "preview:frontend": "npm run preview --workspace @hackathon/frontend"
+  },
+  "devDependencies": {
+    "nx": "^21.5.2"
   }
 }

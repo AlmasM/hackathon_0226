@@ -1,4 +1,6 @@
 node_modules/
 apps/frontend/node_modules/
 apps/frontend/dist/
+.nx/cache/
 .DS_Store
+.nx/
