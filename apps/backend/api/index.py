@@ -1,17 +1,20 @@
-from http.server import BaseHTTPRequestHandler
-import json
+from flask import Flask
+
+from api.health import get_health_payload
+
+app = Flask(__name__)
 
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        payload = {
-            "message": "Hello from Python backend on Vercel",
-            "status": "ok",
-        }
-        body = json.dumps(payload).encode("utf-8")
+@app.get("/health")
+@app.get("/api/health")
+def health():
+    return get_health_payload(), 200
 
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+
+@app.get("/")
+@app.get("/api")
+def index():
+    return {
+        "message": "Hello from Python backend on Vercel",
+        "status": "ok",
+    }, 200

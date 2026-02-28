@@ -1,12 +1,9 @@
-from http.server import HTTPServer
-
-from api.index import handler
+from api.index import app
 
 
 def run() -> None:
-    server = HTTPServer(("0.0.0.0", 8000), handler)
     print("Backend dev server running at http://localhost:8000")
-    server.serve_forever()
+    app.run(host="0.0.0.0", port=8000)
 
 
 if __name__ == "__main__":

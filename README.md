@@ -69,7 +69,7 @@ npx nx run frontend:build
 
 ## Backend API
 
-The backend is a Python serverless function intended for Vercel.
+The backend is a Flask app deployed as a Python serverless function on Vercel.
 
 - Function file: `apps/backend/api/index.py`
 - Public route: `/api`
@@ -77,6 +77,7 @@ The backend is a Python serverless function intended for Vercel.
 For local backend-only development with Nx:
 
 ```bash
+python3 -m pip install -r apps/backend/requirements.txt
 npx nx run backend:serve
 ```
 
