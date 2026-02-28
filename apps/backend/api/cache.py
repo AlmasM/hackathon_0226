@@ -63,3 +63,25 @@ def get_cache_status() -> dict:
     keys = list(cache.keys())
     pairs = [k.split(":", 1) for k in keys if ":" in k]
     return {"count": len(keys), "cached": [{"restaurant_id": r, "user_profile_id": u} for r, u in pairs]}
+
+
+def update_restaurant_ids(mapping: dict[str, str]) -> None:
+    """
+    Remap cache keys and nested restaurant.id when restaurant ids change (e.g. after sync normalization).
+    mapping: old_id -> new_id. Keys that remap to the same id are merged (one entry kept).
+    """
+    if not mapping:
+        return
+    cache = _load_cache()
+    new_cache = {}
+    for key, val in list(cache.items()):
+        if ":" not in key:
+            new_cache[key] = val
+            continue
+        old_rid, up_id = key.split(":", 1)
+        new_rid = mapping.get(old_rid, old_rid)
+        new_key = f"{new_rid}:{up_id}"
+        if isinstance(val, dict) and "restaurant" in val and isinstance(val["restaurant"], dict):
+            val = {**val, "restaurant": {**val["restaurant"], "id": new_rid}}
+        new_cache[new_key] = val
+    _save_cache(new_cache)

@@ -1,110 +1,12 @@
 [
-  {
-    "id": "f6a4c6a5-5df2-427c-8104-2c0bc0dca786",
-    "restaurant_id": "r1",
-    "image_url": "https://example.com/intro.jpg",
-    "source": "owner_upload",
-    "tags": [],
-    "slot_type": "personalized",
-    "display_order": 0
-  },
-  {
-    "id": "89dda95f-6edb-41e2-a863-6f052beb127c",
-    "restaurant_id": "r1",
-    "image_url": "https://example.com/outro.jpg",
-    "source": "owner_upload",
-    "tags": [],
-    "slot_type": "personalized",
-    "display_order": 1
-  },
-  {
-    "id": "b1f68fea-b61d-40d8-8a6c-00deec571f7a",
-    "restaurant_id": "r6947ff33",
-    "image_url": "https://lh3.googleusercontent.com/places/ANXAkqGx9nhIiTZSA1XKIfXldG_zEjiYd9RWiAGjWPAVrHo0AX0AznA-IzObz7mfqcAW9U8ukgqVMpv_go-xPGmyerbd12eQGbW5weo=s4800-w800",
-    "source": "google",
-    "tags": [],
-    "slot_type": "personalized",
-    "display_order": 0
-  },
-  {
-    "id": "3bed1ccd-7b0f-489e-8fe7-b67d98ba7d0e",
-    "restaurant_id": "r6947ff33",
-    "image_url": "https://lh3.googleusercontent.com/places/ANXAkqFc6kIgCYDuuutW_LggNmCwqYxBgSPsrk3ia1QLuPVhg4BlxjUZvU-5J5fO2l5w6yuWookqWooE0m18e4FvECUW6qzr-PgntYg=s4800-w800",
-    "source": "google",
-    "tags": [],
-    "slot_type": "personalized",
-    "display_order": 1
-  },
-  {
-    "id": "db091012-f8ea-42e2-b6cc-78f8f611e128",
-    "restaurant_id": "r6947ff33",
-    "image_url": "https://lh3.googleusercontent.com/place-photos/AL8-SNE0JQMdhhYog2E_kHp7EpgY_7VZSIaW6vsHSM_1uyaGzQltkqE84uw4f46_U_0DjrVffNI4L3QkIS1ThPIRZXsSFFMyTzz6rkdDhTX52YpfGRPvlLq1bY0Q1mEcvZ4d_IbJbtC87_Jb1aSJU4UyQNT59w=s4800-w800",
-    "source": "google",
-    "tags": [],
-    "slot_type": "personalized",
-    "display_order": 2
-  },
-  {
-    "id": "ba243cb0-105b-4d25-8880-615d9d4b4e43",
-    "restaurant_id": "r6947ff33",
-    "image_url": "https://lh3.googleusercontent.com/place-photos/AL8-SNFZUucua1hJyqiTL7PmO7GGbAl_KL1A5Vlb8RiZealHzcAN-O1zGVUqxT4sKCQZVkmqbPnalSvSccXcBQ8d8EEauWdkjOO19LgqGsZkKVvtyu9EnZERfAgHyes0d9ZVqfj7HShto1Sl1CnFxaugZxwWkw=s4800-w800",
-    "source": "google",
-    "tags": [],
-    "slot_type": "personalized",
-    "display_order": 3
-  },
-  {
-    "id": "d70b065d-9629-4985-8c57-6b704cdab398",
-    "restaurant_id": "r6947ff33",
-    "image_url": "https://lh3.googleusercontent.com/place-photos/AL8-SNGiaG8ODAgjx6OYt1uDkcL2DSXc7cIQYH1WV_J8tqTxB-qmxm5uL_bAQFFw7Lr_QaW20RdkTdwWPU2eMKMoyo2Qw_HRjfkf6Lh7vHc-fD2vrPITf4u7ffehPGkhYyMUG-a9tklDU9rIuYpuOMjwpWAYEQ=s4800-w800",
-    "source": "google",
-    "tags": [],
-    "slot_type": "personalized",
-    "display_order": 4
-  },
-  {
-    "id": "e7013845-ea2c-4096-a5c9-beb767fde07c",
-    "restaurant_id": "r6947ff33",
-    "image_url": "https://lh3.googleusercontent.com/place-photos/AL8-SNEH_oYoLwvMnPkx9zkMTFTRGFeLa4kSwCYaIMQC62-awPbOkIA1smoLzipAVS4O0hRm3NeHlKsdDq82IIlU2SbPtt11mZHzXvJF1uCs-iWQQdsBR0ThH0b5nFQFZmU7s-3Jon22lEHNkkMewQ=s4800-w800",
-    "source": "google",
-    "tags": [],
-    "slot_type": "personalized",
-    "display_order": 5
-  },
-  {
-    "id": "a918dd36-5a1d-4a2c-b877-59beb38af9c2",
-    "restaurant_id": "r6947ff33",
-    "image_url": "https://lh3.googleusercontent.com/place-photos/AL8-SNHGKHUaA3XjWuz_PRDcRdyzTURPrQUaA5SX7ugMmVJmW6qxY5UxBlo6aj0kxQrqS-qSU-L7036AFy0816dhGOPzY1oCR-RNiqYQMpaLgq2MrTlz8rnE0MQogJgXzJMTpKNR44hHEgH3-7542w-4ZIPg=s4800-w800",
-    "source": "google",
-    "tags": [],
-    "slot_type": "personalized",
-    "display_order": 6
-  },
-  {
-    "id": "d54a3256-ee31-457c-a6b2-4194d19d5502",
-    "restaurant_id": "r6947ff33",
-    "image_url": "https://lh3.googleusercontent.com/place-photos/AL8-SNH5aizj94hXeBCLjF8HEg8QyvnxOX1FLePhkuoaAaCCVgfzOk3ccYGmeAJKtF2wuDV4b-Ajua0EL-blcbqHDxAwWv-bNqQSpUJDaI2fcp_3NjsRwCz5qygj68jnQ9x6J7pS1vqhnfioJG7nTjHDKimk=s4800-w800",
-    "source": "google",
-    "tags": [],
-    "slot_type": "personalized",
-    "display_order": 7
-  },
-  {
-    "id": "ce3cfb8a-0afb-4036-ab1c-9fa57cee5736",
-    "restaurant_id": "r6947ff33",
-    "image_url": "https://lh3.googleusercontent.com/place-photos/AL8-SNGI-LGU4p837WofVG6eSAU1VZsla_aObl-e744ZxjJhOdoqPSvXgUICGcCHTBXhfdOM8dRyQ6XKg7xMoXxXz83aUGzqKPQmH_CvcMvo9O7RHB88s7aWSE6BnqlGoc5Z8YN8O0RA4Bh_du0n8w=s4800-w800",
-    "source": "google",
-    "tags": [],
-    "slot_type": "personalized",
-    "display_order": 8
-  },
-  {
-    "id": "52573ad0-dda1-46fa-9430-4a9f6d23535b",
-    "restaurant_id": "r6947ff33",
-    "image_url": "https://lh3.googleusercontent.com/place-photos/AL8-SNHUvNEGjk2rBwfubBE0OpqgVWRPbBhK_AomcVSCCnOAWIEcmK-pg0F61ARdFUIcvWKLOXV4ni4H5v2KrGLXf7MPrzQ8rfXGRMHB-BrXm2gzIA5Ihr9iqkCcvzkxEIpQgeRHX4Oy1qBJPv9rgiDjEGNLNA=s4800-w800",
-    "source": "google",
-    "tags": [],
-    "slot_type": "personalized",
-    "display_order": 9
-  }
+  {"id":"39bc32fb-f3ef-48ff-be6e-55d07b070140","restaurant_id":"ChIJPYZsDhFZwokRMMRoYT7c2Uk","image_url":"https://lh3.googleusercontent.com/places/ANXAkqGomzbGEBK8CDZGOF6jtNTMj3BgsjmnYGAJkqVOOq4sinnE1Fs_DNsOOqFcMHZSEwEapy8h4bemDPQCdJxj3ZR62PxJN9F6SYc=s4800-w800","source":"google","tags":[],"slot_type":"personalized","display_order":0},
+  {"id":"916d70af-c56d-4401-9826-72e62e99c67b","restaurant_id":"ChIJPYZsDhFZwokRMMRoYT7c2Uk","image_url":"https://lh3.googleusercontent.com/places/ANXAkqGr5E9_ho_RD1GvzG4LkVwgL7C81IBt3RkZyKaguJYWmYiReXxgb7oVRv6NBNlWt5TgWsz3hir5B_HnRCgwUp9JfTgQsjlenDg=s4800-w800","source":"google","tags":[],"slot_type":"personalized","display_order":1},
+  {"id":"05f6ecbc-9a35-4fd0-ad33-ec4983fcfbf0","restaurant_id":"ChIJPYZsDhFZwokRMMRoYT7c2Uk","image_url":"https://lh3.googleusercontent.com/place-photos/AL8-SNHeTafJq-Bg4tUPrKNvigzda6JKVk_OgaYCJijJyVpjHYpijtcBK7d-ApmYmi9nfgK117NhAfxxUSsVlCToYyR0qF2-YblrbZZvy5o_hSSZ-gJlLL1tmE0R6mBnpZB8e8vQO8sk5PjuY_wJosI=s4800-w800","source":"google","tags":[],"slot_type":"personalized","display_order":2},
+  {"id":"11ccb3bd-390c-4c4f-9383-d3b562d8d61f","restaurant_id":"ChIJPYZsDhFZwokRMMRoYT7c2Uk","image_url":"https://lh3.googleusercontent.com/place-photos/AL8-SNHQ6F7hJ28bTfYy86t8YTeb-vqyWmaDh9yFRqQf5VcUMrdjupbEPGD40TAiH_RfdYvbWncVv2192pq8AjC9AkNot6n3WMzpOM-TxPleYw2FmOXQhc7TMwibIib7-WITrl5W0QSigE6luP__eAsTZkWs=s4800-w800","source":"google","tags":[],"slot_type":"personalized","display_order":3},
+  {"id":"011ec608-7129-4f5d-ace5-dd716d4e6192","restaurant_id":"ChIJPYZsDhFZwokRMMRoYT7c2Uk","image_url":"https://lh3.googleusercontent.com/place-photos/AL8-SNEbfczdEJvX-cPKH2HZ6QQ8-BCy6zh2-4E-ddBjFq57W69c1Y8UAXCLqt536wK2zJFyGVPqguAsKMjQngN4eP96nahGtmuA1KK6Wq16SO-DCwc-FX0Pp9sQdwf2mYZJsydSggAmpXM4hAw9Gy-TyHWDzg=s4800-w800","source":"google","tags":[],"slot_type":"personalized","display_order":4},
+  {"id":"e72cedc4-458e-410c-9798-89baa04047bf","restaurant_id":"ChIJPYZsDhFZwokRMMRoYT7c2Uk","image_url":"https://lh3.googleusercontent.com/places/ANXAkqEvesiQBB_Xo3ODLkCveLxlxeG2bPBS02iKWU0C-XDRit9wUtHfHT1ewtRtyCqmVPJeBbiCeb_ABKTVU5SZFc2BtiEevS-mHFU=s4800-w800","source":"google","tags":[],"slot_type":"personalized","display_order":5},
+  {"id":"2ccd86e0-7963-420e-99a2-91b393e0697d","restaurant_id":"ChIJPYZsDhFZwokRMMRoYT7c2Uk","image_url":"https://lh3.googleusercontent.com/place-photos/AL8-SNEj7B1ZAab4ngx3Vyctrgzl7lnfvkNx4a5ZKyoldxx9HdNnxxAVC1Eo7zp-Kdvbd9-gZt9t1R4-p6jKppNBgt0gdqyWm1G-1XuMh7ZeiHDd1Tk6LDS6zQ-Qwm7cx3Hv5pXUUKhRHG_Sne5A-lpb8Rs4WA=s4800-w800","source":"google","tags":[],"slot_type":"personalized","display_order":6},
+  {"id":"bf5d7a8f-5d3b-475a-91f5-d508775ee405","restaurant_id":"ChIJPYZsDhFZwokRMMRoYT7c2Uk","image_url":"https://lh3.googleusercontent.com/places/ANXAkqFFqhZNxTZbJe6peRKI51bWecf19fvt4DM3yZ9LxdLtt-s94c4eNRzWMDppu_DYtZRQIpsJI2ZGMQj11m0Mos3dJehXoiLVJH8=s4800-w800","source":"google","tags":[],"slot_type":"personalized","display_order":7},
+  {"id":"aa39a943-a6c5-43d8-93b9-5175e543367c","restaurant_id":"ChIJPYZsDhFZwokRMMRoYT7c2Uk","image_url":"https://lh3.googleusercontent.com/places/ANXAkqFIs6mmh988nx0EAF64SyYU88NgIEej923Y-kyiacpoRrTsNZsOxyfnYRY8D_96C0Ry59ZnQePNIsJmd8VXFbqGxsRMGaClLuc=s4800-w800","source":"google","tags":[],"slot_type":"personalized","display_order":8},
+  {"id":"721a6606-179c-44ca-9a16-fdae99773237","restaurant_id":"ChIJPYZsDhFZwokRMMRoYT7c2Uk","image_url":"https://lh3.googleusercontent.com/places/ANXAkqElSMmYsYfKPdoizcilK7ITH5L4NdiUfNJsm5a-ipWnvCba7oa4oCpDNzIFxYZDnqUSOy7uFbAHsRnQF65bLInfXVOdbGEbEtk=s4800-w800","source":"google","tags":[],"slot_type":"personalized","display_order":9}
 ]

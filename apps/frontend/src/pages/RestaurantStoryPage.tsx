@@ -127,61 +127,22 @@ export default function RestaurantStoryPage() {
   return (
     <>
       {isPreview && !previewBannerDismissed && (
-        <div
-          role="banner"
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 100,
-            background: "rgba(0,0,0,0.85)",
-            color: "#fff",
-            padding: "10px 16px",
-            fontSize: 14,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
+        <div role="banner" className="story-page__preview-banner">
           <span>
             Owner Preview Mode — switch personas to see different versions.
           </span>
           <button
             type="button"
+            className="story-page__preview-banner-dismiss"
             onClick={() => setPreviewBannerDismissed(true)}
             aria-label="Dismiss"
-            style={{
-              background: "transparent",
-              border: "1px solid #fff",
-              color: "#fff",
-              padding: "4px 12px",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
           >
             Dismiss
           </button>
         </div>
       )}
       {toastVisible && (
-        <div
-          role="status"
-          style={{
-            position: "fixed",
-            bottom: 80,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 100,
-            background: "rgba(0,0,0,0.9)",
-            color: "#fff",
-            padding: "12px 24px",
-            borderRadius: 12,
-            fontSize: 16,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-          }}
-        >
+        <div role="status" className="story-page__toast">
           Booking requested! 🎉
         </div>
       )}

@@ -468,7 +468,7 @@ export default function OwnerDashboardPage() {
             {syncAllLoading ? "Syncing…" : "Sync all restaurants from Google"}
           </button>
           {syncAllResult && (
-            <p className="owner-dashboard__field-hint" style={{ marginTop: 8 }}>
+            <p className="owner-dashboard__field-hint">
               Synced {syncAllResult.synced} restaurant(s).
               {syncAllResult.errors.length > 0 &&
                 ` Errors: ${syncAllResult.errors.map((e) => e.name || e.id || e.error).join(", ")}`}

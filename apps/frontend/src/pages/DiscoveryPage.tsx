@@ -1,10 +1,11 @@
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Map, Marker } from "@vis.gl/react-google-maps";
+import { Map, Marker, useMap } from "@vis.gl/react-google-maps";
 import { useHasMapsKey, useMapsKeyContext } from "../contexts/MapsKeyContext";
 import type { Restaurant, RestaurantListItem } from "../types";
 import type { PlaceReview } from "../types";
 import RestaurantCard from "../components/RestaurantCard";
+import DiscoverySearch from "../components/DiscoverySearch";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ??
@@ -29,11 +30,41 @@ function centerFromRestaurants(restaurants: Restaurant[]): {
   };
 }
 
+/** Fits the map to show all restaurant markers when they load or when returning to discovery. */
+function FitMapToPins({
+  restaurants,
+}: {
+  restaurants: RestaurantListItem[];
+}) {
+  const map = useMap();
+  const points = useMemo(
+    () =>
+      restaurants.filter(
+        (r) =>
+          typeof r.lat === "number" &&
+          typeof r.lng === "number" &&
+          Number.isFinite(r.lat) &&
+          Number.isFinite(r.lng),
+      ) as Array<{ lat: number; lng: number }>,
+    [restaurants],
+  );
+
+  useEffect(() => {
+    if (!map || points.length < 2) return;
+    const bounds = new google.maps.LatLngBounds();
+    points.forEach((p) => bounds.extend(p));
+    map.fitBounds(bounds, { top: 48, right: 48, bottom: 48, left: 48 });
+  }, [map, points]);
+
+  return null;
+}
+
 export default function DiscoveryPage() {
   const navigate = useNavigate();
   const hasMapsKey = useHasMapsKey();
   const { mapAuthFailed } = useMapsKeyContext();
   const [restaurants, setRestaurants] = useState<RestaurantListItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [reviewsById, setReviewsById] = useState<
     Record<string, { reviewCount: number; reviews: PlaceReview[] }>
   >({});
@@ -43,23 +74,38 @@ export default function DiscoveryPage() {
     [restaurants],
   );
 
+  const handlePlaceSelect = useCallback(
+    (placeId: string) => {
+      navigate(`/place/${encodeURIComponent(placeId)}`);
+    },
+    [navigate],
+  );
+
   function firstImageUrl(r: RestaurantListItem): string | null {
     return r.thumbnail_url ?? null;
   }
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
     async function fetchRestaurants() {
       try {
         const res = await fetch(`${API_BASE}/api/restaurants`);
+        if (cancelled) return;
         if (res.ok) {
           const data = await res.json();
           setRestaurants(Array.isArray(data) ? data : (data.restaurants ?? []));
+        } else {
+          setRestaurants([]);
         }
       } catch {
-        setRestaurants([]);
+        if (!cancelled) setRestaurants([]);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
     fetchRestaurants();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -97,12 +143,14 @@ export default function DiscoveryPage() {
       <section className="discovery-map-container" aria-label="Discovery Map">
         {hasMapsKey ? (
           <Map
+            key="discovery-map"
             defaultCenter={mapCenter}
             defaultZoom={13}
             gestureHandling="greedy"
             disableDefaultUI={false}
             style={{ width: "100%", height: "100%", minHeight: "200px" }}
           >
+            <FitMapToPins restaurants={restaurants} />
             {restaurants
               .filter(
                 (r) =>
@@ -121,68 +169,76 @@ export default function DiscoveryPage() {
               ))}
           </Map>
         ) : (
-          <div
-            className="discovery-map-placeholder"
-            style={{
-              height: "100%",
-              minHeight: 280,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "#e8e8e8",
-              color: "#555",
-              padding: 24,
-              textAlign: "center",
-              borderRadius: 8,
-            }}
-          >
-            <div>
+          <div className="discovery-map-placeholder">
+            <div className="discovery-map-placeholder__inner">
               {mapAuthFailed ? (
-                <p style={{ margin: 0 }}>
-                  Map authentication failed. Open the browser console (F12 →
-                  Console) and look for <strong>[Maps] AuthFailure</strong> for
-                  a checklist to fix the API key.
+                <p className="discovery-map-placeholder__text">
+                  Map couldn’t load. Check your API key and console for details.
                 </p>
               ) : (
-                <>
-                  <p style={{ margin: "0 0 8px 0" }}>
-                    Set <code>VITE_GOOGLE_MAPS_API_KEY</code> in{" "}
-                    <code>apps/frontend/.env</code> and enable{" "}
-                    <strong>Maps JavaScript API</strong> in Google Cloud Console
-                    to see the map.
-                  </p>
-                  <p style={{ margin: 0, fontSize: 14, color: "#666" }}>
-                    If you see <strong>AuthFailure</strong> with a key set:
-                    enable Maps JavaScript API, add{" "}
-                    <code>http://localhost:5173</code> to allowed referrers if
-                    restricted, and ensure billing is enabled for the project.
-                  </p>
-                </>
+                <p className="discovery-map-placeholder__text">
+                  Map and search need a valid Google Maps API key. Add it in your
+                  environment to explore places here.
+                </p>
               )}
             </div>
           </div>
         )}
+        {hasMapsKey && (
+          <div className="discovery-search-float" aria-label="Search places">
+            <div className="discovery-search-float__inner">
+              <DiscoverySearch onPlaceSelect={handlePlaceSelect} />
+            </div>
+          </div>
+        )}
       </section>
+      <a
+        href="/owner"
+        className="discovery-fab"
+        onClick={(e) => {
+          e.preventDefault();
+          navigate("/owner");
+        }}
+        aria-label="Owner management"
+      >
+        <span className="discovery-fab__label">Owner</span>
+      </a>
       <section
         className="discovery-cards-container"
         aria-label="Restaurant Cards"
+        aria-busy={loading}
       >
-        <ul className="discovery-cards-list">
-          {restaurants.map((restaurant) => {
-            const reviews = reviewsById[restaurant.id];
-            return (
-              <li key={restaurant.id}>
-                <RestaurantCard
-                  restaurant={restaurant}
-                  thumbnailUrl={firstImageUrl(restaurant)}
-                  reviewCount={reviews?.reviewCount ?? null}
-                  firstReview={reviews?.reviews?.[0] ?? null}
-                  onClick={() => navigate(`/restaurant/${restaurant.id}`)}
-                />
-              </li>
-            );
-          })}
-        </ul>
+        {loading ? (
+          <p className="discovery-cards-loading">Loading places…</p>
+        ) : restaurants.length === 0 ? (
+          <div className="discovery-cards-empty">
+            <p className="discovery-cards-empty__text">No places to show yet.</p>
+            <p className="discovery-cards-empty__hint">
+              {hasMapsKey ? "Try searching above or add a place as an owner." : "Add a Maps API key to search, or go to Owner management to add a place."}
+            </p>
+          </div>
+        ) : (
+          <ul className="discovery-cards-list">
+            {[...restaurants]
+              .sort((a, b) =>
+                (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" })
+              )
+              .map((restaurant) => {
+              const reviews = reviewsById[restaurant.id];
+              return (
+                <li key={restaurant.id}>
+                  <RestaurantCard
+                    restaurant={restaurant}
+                    thumbnailUrl={firstImageUrl(restaurant)}
+                    reviewCount={reviews?.reviewCount ?? null}
+                    firstReview={reviews?.reviews?.[0] ?? null}
+                    onClick={() => navigate(`/restaurant/${restaurant.id}`)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
     </div>
   );

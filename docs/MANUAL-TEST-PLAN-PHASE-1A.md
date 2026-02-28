@@ -60,7 +60,7 @@ curl http://localhost:8000/api/restaurants
 ### Step 2.3 — One restaurant (with images)
 
 ```bash
-curl http://localhost:8000/api/restaurants/r1
+curl http://localhost:8000/api/restaurants/ChIJV7QQ6kdZwokRax4615zpSGU
 ```
 
 - **You should see:** One restaurant object **plus** an `"images"` array (can be empty `[]`). No 404.
@@ -81,7 +81,7 @@ curl http://localhost:8000/api/user-profiles
 
 ## Part 3: Owner dashboard in the browser
 
-Go to: **http://localhost:5173/owner/r1**  
+Go to: **http://localhost:5173/owner/ChIJV7QQ6kdZwokRax4615zpSGU**  
 (Use the port Vite gave you if it’s not 5173.)
 
 ### Step 3.1 — Page loads
@@ -151,9 +151,9 @@ Go to: **http://localhost:5173/owner/r1**
 
 ### Step 4.1 — Import a restaurant by Place ID
 
-1. Stay on **/owner/r1** (or go to the owner dashboard).
+1. Stay on the owner dashboard (or go to it for a restaurant).
 2. In “Import from Google”, paste a **real Google Place ID**.  
-   Example (Le Bernardin): `ChIJAQBEylJYwokRlNgMJJHxNiA`  
+   Example (Le Bernardin): `ChIJV7QQ6kdZwokRax4615zpSGU`  
    (You can find more at [Place ID Finder](https://developers.google.com/maps/documentation/places/web-service/place-id).)
 3. Click **“Import from Google”**.
 - **You should see:**  
@@ -182,7 +182,7 @@ Go to: **http://localhost:5173/owner/r1**
 
 Do this once to tie everything together:
 
-1. Open **/owner/r1**.
+1. Open the owner page for a restaurant (e.g. `/owner/ChIJV7QQ6kdZwokRax4615zpSGU`).
 2. Add **one image** via URL.
 3. Click **“Set as Intro”** on that image.
 4. Add **another image** via URL.
@@ -202,7 +202,7 @@ Do this once to tie everything together:
 | Problem | What to check |
 |--------|----------------|
 | “Cannot GET /api/…” or connection refused | Backend running? Correct URL (e.g. http://localhost:8000)? |
-| Blank page or “Restaurant not found” | Did you use a real restaurant id from seed? Try `r1`, `r2`, … `r5`. |
+| Blank page or “Restaurant not found” | Use a restaurant id from GET /api/restaurants (ids are Google Place IDs, e.g. ChIJV7QQ6kdZwokRax4615zpSGU). |
 | Import from Google fails | `GOOGLE_PLACES_API_KEY` in `apps/backend/.env`, Places API (New) enabled. |
 | Auto-Tag fails or no tags | `GEMINI_API_KEY` in `apps/backend/.env`. |
 | Frontend can’t reach backend | CORS is on; frontend uses same host/port as backend (e.g. `VITE_API_URL` or default http://localhost:8000). |

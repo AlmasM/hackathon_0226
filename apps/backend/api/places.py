@@ -1,6 +1,14 @@
 """
 Google Places API (New) integration for restaurant import.
-Uses places.googleapis.com/v1/places/{place_id} with X-Goog-Api-Key and X-Goog-FieldMask.
+
+References (official docs):
+- Place Details (New): https://developers.google.com/maps/documentation/places/web-service/place-details
+- Place Data Fields:   https://developers.google.com/maps/documentation/places/web-service/data-fields
+- Place Photos (New):  https://developers.google.com/maps/documentation/places/web-service/place-photos
+- getMedia:            https://developers.google.com/maps/documentation/places/web-service/reference/rest/v1/places.photos/getMedia
+
+Uses GET places.googleapis.com/v1/places/{place_id} with X-Goog-Api-Key and X-Goog-FieldMask.
+Photo URLs: GET places.googleapis.com/v1/{photo.name}/media with maxWidthPx and key (or X-Goog-Api-Key).
 """
 import requests
 
@@ -69,6 +77,34 @@ def map_place_to_restaurant(place_id: str, details: dict, restaurant_id: str) ->
 
 
 REVIEWS_FIELD_MASK = "reviews,userRatingCount"
+
+
+def resolve_photos_from_details(details: dict, api_key: str, max_photos: int = 15) -> list[dict]:
+    """
+    Resolve photo names from place details to image URLs.
+    Returns [{"image_url": str}, ...]. Use when details are already fetched.
+    """
+    photos = details.get("photos") or []
+    result = []
+    for photo in photos[:max_photos]:
+        if not isinstance(photo, dict):
+            continue
+        photo_name = photo.get("name")
+        if not photo_name:
+            continue
+        url = resolve_photo_url(photo_name, api_key)
+        if url:
+            result.append({"image_url": url})
+    return result
+
+
+def fetch_place_photo_urls(place_id: str, api_key: str, max_photos: int = 15) -> list[dict]:
+    """
+    Fetch place details and return resolved photo URLs.
+    Returns [{"image_url": str}, ...] for use when details are not already available.
+    """
+    details = fetch_place_details(place_id, api_key)
+    return resolve_photos_from_details(details, api_key, max_photos)
 
 
 def fetch_place_reviews(place_id: str, api_key: str) -> dict:

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CompiledStory } from "../types";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL ?? "";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ??
+  import.meta.env.VITE_API_URL ??
+  "http://localhost:8000";
 
 export interface UsePersonalizedStoryResult {
   story: CompiledStory | null;

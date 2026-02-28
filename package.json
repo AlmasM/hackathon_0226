@@ -10,7 +10,9 @@
     "dev:backend": "nx serve backend",
     "dev": "nx run-many -t serve --projects=frontend,backend --parallel=2",
     "build:frontend": "nx build frontend",
-    "preview:frontend": "npm run preview --workspace @hackathon/frontend"
+    "preview:frontend": "npm run preview --workspace @hackathon/frontend",
+    "start:frontend": "node scripts/serve-frontend.js",
+    "start:backend": "node scripts/serve-backend.js"
   },
   "devDependencies": {
     "nx": "^21.5.2"
