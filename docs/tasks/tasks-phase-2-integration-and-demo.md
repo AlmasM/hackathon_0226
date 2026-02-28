@@ -48,25 +48,34 @@ different images. This must work flawlessly.
 - **Client-side story compilation** with basic tag-based filtering (direct Supabase reads)
 - Loading skeletons, error fallbacks, image preloading
 
-### Supabase Schema Reference
-```sql
-CREATE TABLE restaurants (
-  id UUID PK, google_place_id TEXT, name TEXT, address TEXT,
-  lat FLOAT, lng FLOAT, rating FLOAT, cuisine_type TEXT[],
-  phone TEXT, website TEXT, created_at TIMESTAMPTZ
-);
-CREATE TABLE restaurant_images (
-  id UUID PK, restaurant_id UUID FK, image_url TEXT, source TEXT,
-  tags TEXT[], slot_type TEXT, display_order INT, created_at TIMESTAMPTZ
-);
-CREATE TABLE story_templates (
-  id UUID PK, restaurant_id UUID FK, intro_image_id UUID FK,
-  outro_image_id UUID FK, cta_text TEXT, cta_url TEXT, created_at TIMESTAMPTZ
-);
-CREATE TABLE user_profiles (
-  id UUID PK, name TEXT, avatar_url TEXT, persona_type TEXT,
-  preferences JSONB, created_at TIMESTAMPTZ
-);
+### Supabase Schema Reference (JSON)
+```json
+{
+  "tables": {
+    "restaurants": {
+      "id": "uuid (PK)", "google_place_id": "text (unique)", "name": "text",
+      "address": "text", "lat": "float", "lng": "float", "rating": "float",
+      "cuisine_type": "text[]", "phone": "text", "website": "text", "created_at": "timestamptz"
+    },
+    "restaurant_images": {
+      "id": "uuid (PK)", "restaurant_id": "uuid (FK → restaurants.id, cascade)",
+      "image_url": "text", "source": "text (google | owner_upload)",
+      "tags": "text[]", "slot_type": "text (intro | personalized | outro)",
+      "display_order": "int", "created_at": "timestamptz"
+    },
+    "story_templates": {
+      "id": "uuid (PK)", "restaurant_id": "uuid (FK → restaurants.id, cascade)",
+      "intro_image_id": "uuid (FK → restaurant_images.id)",
+      "outro_image_id": "uuid (FK → restaurant_images.id)",
+      "cta_text": "text (default: 'Book a Table')", "cta_url": "text", "created_at": "timestamptz"
+    },
+    "user_profiles": {
+      "id": "uuid (PK)", "name": "text", "avatar_url": "text",
+      "persona_type": "text (vegan | carnivore | cocktail_lover)",
+      "preferences": "jsonb { tags: string[], avoid_tags: string[] }", "created_at": "timestamptz"
+    }
+  }
+}
 ```
 
 ### Shared TypeScript Types

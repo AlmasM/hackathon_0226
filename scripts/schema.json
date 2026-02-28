@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "TasteTales canonical data schema. Single source of truth for tables; TypeScript types and SQL DDL should be derived from this.",
+  "tables": {
+    "restaurants": {
+      "description": "Restaurants pulled from Google Places",
+      "columns": {
+        "id": { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
+        "google_place_id": { "type": "text", "unique": true, "required": true },
+        "name": { "type": "text", "required": true },
+        "address": { "type": "text" },
+        "lat": { "type": "float" },
+        "lng": { "type": "float" },
+        "rating": { "type": "float" },
+        "cuisine_type": { "type": "text[]" },
+        "phone": { "type": "text" },
+        "website": { "type": "text" },
+        "created_at": { "type": "timestamptz", "default": "now()" }
+      }
+    },
+    "restaurant_images": {
+      "description": "Images for each restaurant",
+      "columns": {
+        "id": { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
+        "restaurant_id": { "type": "uuid", "foreignKey": { "table": "restaurants", "column": "id", "onDelete": "cascade" }, "required": true },
+        "image_url": { "type": "text", "required": true },
+        "source": { "type": "text", "default": "google", "enum": ["google", "owner_upload"] },
+        "tags": { "type": "text[]", "description": "AI-generated tags, e.g. ['vegan', 'cocktail', 'steak']" },
+        "slot_type": { "type": "text", "default": "personalized", "enum": ["intro", "personalized", "outro"] },
+        "display_order": { "type": "int" },
+        "created_at": { "type": "timestamptz", "default": "now()" }
+      }
+    },
+    "story_templates": {
+      "description": "Story templates defined by owners",
+      "columns": {
+        "id": { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
+        "restaurant_id": { "type": "uuid", "foreignKey": { "table": "restaurants", "column": "id", "onDelete": "cascade" }, "required": true },
+        "intro_image_id": { "type": "uuid", "foreignKey": { "table": "restaurant_images", "column": "id" } },
+        "outro_image_id": { "type": "uuid", "foreignKey": { "table": "restaurant_images", "column": "id" } },
+        "cta_text": { "type": "text", "default": "Book a Table" },
+        "cta_url": { "type": "text" },
+        "created_at": { "type": "timestamptz", "default": "now()" }
+      }
+    },
+    "user_profiles": {
+      "description": "Simulated user profiles",
+      "columns": {
+        "id": { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
+        "name": { "type": "text", "required": true },
+        "avatar_url": { "type": "text" },
+        "persona_type": { "type": "text", "required": true, "enum": ["vegan", "carnivore", "cocktail_lover"] },
+        "preferences": { "type": "jsonb", "required": true, "schema": { "tags": "string[]", "avoid_tags": "string[]" } },
+        "created_at": { "type": "timestamptz", "default": "now()" }
+      }
+    }
+  }
+}

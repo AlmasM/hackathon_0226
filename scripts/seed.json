@@ -1,0 +1,78 @@
+{
+  "user_profiles": [
+    {
+      "name": "The Vegan",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=vegan",
+      "persona_type": "vegan",
+      "preferences": {
+        "tags": ["vegan", "vegetarian", "salad", "organic", "plant_based", "smoothie", "avocado", "tofu", "garden", "healthy"],
+        "avoid_tags": ["steak", "meat", "burger", "bbq", "bacon", "ribeye", "pork", "chicken_wings"]
+      }
+    },
+    {
+      "name": "The Carnivore",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=carnivore",
+      "persona_type": "carnivore",
+      "preferences": {
+        "tags": ["steak", "burger", "bbq", "meat", "ribeye", "smoked", "grill", "bacon", "wings", "prime_rib"],
+        "avoid_tags": ["tofu", "vegan", "plant_based"]
+      }
+    },
+    {
+      "name": "The Cocktail Lover",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=cocktail",
+      "persona_type": "cocktail_lover",
+      "preferences": {
+        "tags": ["cocktail", "bar", "wine", "craft_beer", "mixology", "happy_hour", "drinks", "martini", "speakeasy", "rooftop"],
+        "avoid_tags": []
+      }
+    }
+  ],
+  "restaurants": [
+    {
+      "google_place_id": "ChIJAQBEylJYwokRlNgMJJHxNiA",
+      "name": "Le Bernardin",
+      "address": "155 W 51st St, New York, NY",
+      "lat": 40.7618,
+      "lng": -73.9818,
+      "rating": 4.7,
+      "cuisine_type": ["french", "seafood", "fine_dining"]
+    },
+    {
+      "google_place_id": "ChIJ4WAmhqJZwokRIPEYdG2QROI",
+      "name": "Peter Luger Steak House",
+      "address": "178 Broadway, Brooklyn, NY",
+      "lat": 40.7099,
+      "lng": -73.9624,
+      "rating": 4.4,
+      "cuisine_type": ["steakhouse", "american", "classic"]
+    },
+    {
+      "google_place_id": "ChIJhUBe4WBZwokRnLGNGx5paQQ",
+      "name": "Death & Co",
+      "address": "433 E 6th St, New York, NY",
+      "lat": 40.7265,
+      "lng": -73.9878,
+      "rating": 4.5,
+      "cuisine_type": ["cocktail_bar", "speakeasy", "drinks"]
+    },
+    {
+      "google_place_id": "ChIJi3MwDPRYwokR7L20FGbVECU",
+      "name": "By Chloe",
+      "address": "185 Bleecker St, New York, NY",
+      "lat": 40.7293,
+      "lng": -73.9997,
+      "rating": 4.3,
+      "cuisine_type": ["vegan", "fast_casual", "healthy"]
+    },
+    {
+      "google_place_id": "ChIJK1Gm8RpZwokRn2p5Z3PjfVo",
+      "name": "Gramercy Tavern",
+      "address": "42 E 20th St, New York, NY",
+      "lat": 40.7386,
+      "lng": -73.9884,
+      "rating": 4.6,
+      "cuisine_type": ["american", "new_american", "fine_dining"]
+    }
+  ]
+}

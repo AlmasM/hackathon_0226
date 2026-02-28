@@ -50,7 +50,8 @@
 - `apps/backend/.env` — **New file**: Backend environment variables
 - `apps/backend/.env.example` — **New file**: Template for backend env vars
 - `.gitignore` — Add `.env` files
-- `scripts/seed.sql` — **New file**: SQL seed script for Supabase
+- `scripts/schema.json` — **New file**: Canonical JSON schema (single source of truth for tables; no live Supabase implementation)
+- `scripts/seed.json` — **New file**: Seed data (3 personas, 5 restaurants) in JSON; use when populating Supabase
 
 ### Notes
 
@@ -121,83 +122,92 @@ The backend `requirements.txt` is currently empty (just a comment). We need the 
 
 ---
 
-### [ ] 3.0 Set Up Supabase Project & Schema
+### [ ] 3.0 Define Schema (JSON Only — No Supabase Implementation)
 
-`description`: Create the Supabase database schema that both frontend and backend depend on. This is the shared data contract for the entire project.
+`description`: Define the shared data contract as a canonical JSON schema. No live Supabase project or table creation is part of this phase; only the schema is implemented.
 
-`priority`: P0 — Critical (all data flows through Supabase)
+`priority`: P0 — Critical (schema is the contract for all data)
 
 `dependencies`: None (can be done in parallel with Tasks 1.0 and 2.0)
 
 `details`:
-Create 4 tables in Supabase: `restaurants`, `restaurant_images`, `story_templates`, `user_profiles`. Disable RLS for the PoC. These tables are the source of truth for all restaurant data, images, story structures, and user preferences.
+Use a **JSON schema only** as the source of truth. Create `scripts/schema.json` with the 4 table definitions. TypeScript types and any future SQL DDL should be derived from this file. Supabase project creation, table creation in the dashboard, and RLS configuration are **out of scope** — do them manually when connecting Supabase.
 
-`testStrategy`: In the Supabase dashboard, verify all 4 tables exist with correct columns. Insert a test row into `restaurants` and query it from both the frontend Supabase client and the backend Python client.
+`testStrategy`: `scripts/schema.json` exists and defines all 4 tables with correct column types. No Supabase dashboard or API calls required.
 
-- [ ] 3.1 Create a Supabase project (or use an existing one). Note the **Project URL** and **anon public key** (from Settings > API).
-  - **Done when:** You have the URL (e.g., `https://xxxxx.supabase.co`) and anon key.
-- [ ] 3.2 Run the following SQL in the Supabase SQL Editor to create all tables:
-  ```sql
-  -- Restaurants pulled from Google Places
-  CREATE TABLE restaurants (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    google_place_id TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL,
-    address TEXT,
-    lat FLOAT,
-    lng FLOAT,
-    rating FLOAT,
-    cuisine_type TEXT[],
-    phone TEXT,
-    website TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
-  );
+- [ ] 3.1 **Skipped for implementation.** Create a Supabase project only when you connect Supabase later. Note the Project URL and anon key then.
+- [ ] 3.2 Define all 4 tables in **`scripts/schema.json`** using the following JSON schema definitions (single source of truth):
 
-  -- Images for each restaurant
-  CREATE TABLE restaurant_images (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE,
-    image_url TEXT NOT NULL,
-    source TEXT DEFAULT 'google',
-    tags TEXT[],
-    slot_type TEXT DEFAULT 'personalized',
-    display_order INT,
-    created_at TIMESTAMPTZ DEFAULT now()
-  );
-
-  -- Story templates defined by owners
-  CREATE TABLE story_templates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE,
-    intro_image_id UUID REFERENCES restaurant_images(id),
-    outro_image_id UUID REFERENCES restaurant_images(id),
-    cta_text TEXT DEFAULT 'Book a Table',
-    cta_url TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
-  );
-
-  -- Simulated user profiles
-  CREATE TABLE user_profiles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    avatar_url TEXT,
-    persona_type TEXT NOT NULL,
-    preferences JSONB NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT now()
-  );
+  **`restaurants`** — Restaurants pulled from Google Places
+  ```json
+  {
+    "table": "restaurants",
+    "columns": {
+      "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
+      "google_place_id":  { "type": "text", "unique": true, "required": true },
+      "name":             { "type": "text", "required": true },
+      "address":          { "type": "text" },
+      "lat":              { "type": "float" },
+      "lng":              { "type": "float" },
+      "rating":           { "type": "float" },
+      "cuisine_type":     { "type": "text[]" },
+      "phone":            { "type": "text" },
+      "website":          { "type": "text" },
+      "created_at":       { "type": "timestamptz", "default": "now()" }
+    }
+  }
   ```
-  - **Done when:** All 4 tables appear in the Supabase Table Editor with correct columns and types.
-- [ ] 3.3 **Disable Row Level Security** on all 4 tables. In the Supabase dashboard, go to each table → "RLS" tab → Disable. Or run:
-  ```sql
-  ALTER TABLE restaurants DISABLE ROW LEVEL SECURITY;
-  ALTER TABLE restaurant_images DISABLE ROW LEVEL SECURITY;
-  ALTER TABLE story_templates DISABLE ROW LEVEL SECURITY;
-  ALTER TABLE user_profiles DISABLE ROW LEVEL SECURITY;
+
+  **`restaurant_images`** — Images for each restaurant
+  ```json
+  {
+    "table": "restaurant_images",
+    "columns": {
+      "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
+      "restaurant_id":    { "type": "uuid", "foreignKey": { "table": "restaurants", "column": "id", "onDelete": "cascade" }, "required": true },
+      "image_url":        { "type": "text", "required": true },
+      "source":           { "type": "text", "default": "google", "enum": ["google", "owner_upload"] },
+      "tags":             { "type": "text[]", "description": "AI-generated tags, e.g. ['vegan', 'cocktail', 'steak']" },
+      "slot_type":        { "type": "text", "default": "personalized", "enum": ["intro", "personalized", "outro"] },
+      "display_order":    { "type": "int" },
+      "created_at":       { "type": "timestamptz", "default": "now()" }
+    }
+  }
   ```
-  - **Done when:** RLS is disabled (tables show "RLS disabled" badge). Queries from the frontend anon client return data.
-  - **GOTCHA:** If you forget this step, all Supabase queries from the frontend will silently return empty arrays. This is the #1 cause of "it works in the dashboard but not in code" bugs.
-- [ ] 3.4 Note the **service role key** (from Settings > API > service_role). This is needed for the backend (bypasses RLS entirely). **Never expose this in frontend code.**
-  - **Done when:** You have both the `anon` key (for frontend) and `service_role` key (for backend).
+
+  **`story_templates`** — Story templates defined by owners
+  ```json
+  {
+    "table": "story_templates",
+    "columns": {
+      "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
+      "restaurant_id":    { "type": "uuid", "foreignKey": { "table": "restaurants", "column": "id", "onDelete": "cascade" }, "required": true },
+      "intro_image_id":   { "type": "uuid", "foreignKey": { "table": "restaurant_images", "column": "id" } },
+      "outro_image_id":   { "type": "uuid", "foreignKey": { "table": "restaurant_images", "column": "id" } },
+      "cta_text":         { "type": "text", "default": "Book a Table" },
+      "cta_url":          { "type": "text" },
+      "created_at":       { "type": "timestamptz", "default": "now()" }
+    }
+  }
+  ```
+
+  **`user_profiles`** — Simulated user profiles
+  ```json
+  {
+    "table": "user_profiles",
+    "columns": {
+      "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
+      "name":             { "type": "text", "required": true },
+      "avatar_url":       { "type": "text" },
+      "persona_type":     { "type": "text", "required": true, "enum": ["vegan", "carnivore", "cocktail_lover"] },
+      "preferences":      { "type": "jsonb", "required": true, "schema": { "tags": "string[]", "avoid_tags": "string[]" } },
+      "created_at":       { "type": "timestamptz", "default": "now()" }
+    }
+  }
+  ```
+  - **Done when:** `scripts/schema.json` exists with all 4 tables and columns as above. No Supabase Table Editor usage.
+- [ ] 3.3 **Out of scope (Supabase implementation).** When you connect Supabase later, disable RLS on all 4 tables (dashboard or run the `ALTER TABLE ... DISABLE ROW LEVEL SECURITY` SQL).
+- [ ] 3.4 **Out of scope (Supabase implementation).** When you connect Supabase, note the service_role key for the backend; never expose it in frontend code.
 
 ---
 
@@ -369,39 +379,85 @@ Seed 3 user personas with distinct preference profiles and 5 restaurants with re
 
 `testStrategy`: Query each table in the Supabase dashboard. `user_profiles` should have 3 rows. `restaurants` should have 5 rows. Each persona's preferences should have distinct `tags` and `avoid_tags`.
 
-- [ ] 7.1 Seed user personas by running this SQL in the Supabase SQL Editor:
-  ```sql
-  INSERT INTO user_profiles (name, avatar_url, persona_type, preferences) VALUES
-  (
-    'The Vegan',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=vegan',
-    'vegan',
-    '{"tags": ["vegan", "vegetarian", "salad", "organic", "plant_based", "smoothie", "avocado", "tofu", "garden", "healthy"], "avoid_tags": ["steak", "meat", "burger", "bbq", "bacon", "ribeye", "pork", "chicken_wings"]}'
-  ),
-  (
-    'The Carnivore',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=carnivore',
-    'carnivore',
-    '{"tags": ["steak", "burger", "bbq", "meat", "ribeye", "smoked", "grill", "bacon", "wings", "prime_rib"], "avoid_tags": ["tofu", "vegan", "plant_based"]}'
-  ),
-  (
-    'The Cocktail Lover',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=cocktail',
-    'cocktail_lover',
-    '{"tags": ["cocktail", "bar", "wine", "craft_beer", "mixology", "happy_hour", "drinks", "martini", "speakeasy", "rooftop"], "avoid_tags": []}'
-  );
+- [ ] 7.1 Seed user personas. Insert the following JSON objects into the `user_profiles` table via the Supabase Table Editor (Insert Row) or a seed script:
+  ```json
+  [
+    {
+      "name": "The Vegan",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=vegan",
+      "persona_type": "vegan",
+      "preferences": {
+        "tags": ["vegan", "vegetarian", "salad", "organic", "plant_based", "smoothie", "avocado", "tofu", "garden", "healthy"],
+        "avoid_tags": ["steak", "meat", "burger", "bbq", "bacon", "ribeye", "pork", "chicken_wings"]
+      }
+    },
+    {
+      "name": "The Carnivore",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=carnivore",
+      "persona_type": "carnivore",
+      "preferences": {
+        "tags": ["steak", "burger", "bbq", "meat", "ribeye", "smoked", "grill", "bacon", "wings", "prime_rib"],
+        "avoid_tags": ["tofu", "vegan", "plant_based"]
+      }
+    },
+    {
+      "name": "The Cocktail Lover",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=cocktail",
+      "persona_type": "cocktail_lover",
+      "preferences": {
+        "tags": ["cocktail", "bar", "wine", "craft_beer", "mixology", "happy_hour", "drinks", "martini", "speakeasy", "rooftop"],
+        "avoid_tags": []
+      }
+    }
+  ]
   ```
-  - **Done when:** `SELECT * FROM user_profiles` returns 3 rows with distinct preferences.
-- [ ] 7.2 Seed 5 mock restaurants. Use real Google Place IDs from a major city (these will be used with the Google Places import in Phase 1A). Run this SQL:
-  ```sql
-  INSERT INTO restaurants (google_place_id, name, address, lat, lng, rating, cuisine_type) VALUES
-  ('ChIJAQBEylJYwokRlNgMJJHxNiA', 'Le Bernardin', '155 W 51st St, New York, NY', 40.7618, -73.9818, 4.7, ARRAY['french', 'seafood', 'fine_dining']),
-  ('ChIJ4WAmhqJZwokRIPEYdG2QROI', 'Peter Luger Steak House', '178 Broadway, Brooklyn, NY', 40.7099, -73.9624, 4.4, ARRAY['steakhouse', 'american', 'classic']),
-  ('ChIJhUBe4WBZwokRnLGNGx5paQQ', 'Death & Co', '433 E 6th St, New York, NY', 40.7265, -73.9878, 4.5, ARRAY['cocktail_bar', 'speakeasy', 'drinks']),
-  ('ChIJi3MwDPRYwokR7L20FGbVECU', 'By Chloe', '185 Bleecker St, New York, NY', 40.7293, -73.9997, 4.3, ARRAY['vegan', 'fast_casual', 'healthy']),
-  ('ChIJK1Gm8RpZwokRn2p5Z3PjfVo', 'Gramercy Tavern', '42 E 20th St, New York, NY', 40.7386, -73.9884, 4.6, ARRAY['american', 'new_american', 'fine_dining']);
+  - **Done when:** Querying `user_profiles` returns 3 rows with distinct preferences.
+- [ ] 7.2 Seed 5 mock restaurants. Insert the following JSON objects into the `restaurants` table. Use real Google Place IDs from NYC (these will be used with the Google Places import in Phase 1A):
+  ```json
+  [
+    {
+      "google_place_id": "ChIJAQBEylJYwokRlNgMJJHxNiA",
+      "name": "Le Bernardin",
+      "address": "155 W 51st St, New York, NY",
+      "lat": 40.7618, "lng": -73.9818,
+      "rating": 4.7,
+      "cuisine_type": ["french", "seafood", "fine_dining"]
+    },
+    {
+      "google_place_id": "ChIJ4WAmhqJZwokRIPEYdG2QROI",
+      "name": "Peter Luger Steak House",
+      "address": "178 Broadway, Brooklyn, NY",
+      "lat": 40.7099, "lng": -73.9624,
+      "rating": 4.4,
+      "cuisine_type": ["steakhouse", "american", "classic"]
+    },
+    {
+      "google_place_id": "ChIJhUBe4WBZwokRnLGNGx5paQQ",
+      "name": "Death & Co",
+      "address": "433 E 6th St, New York, NY",
+      "lat": 40.7265, "lng": -73.9878,
+      "rating": 4.5,
+      "cuisine_type": ["cocktail_bar", "speakeasy", "drinks"]
+    },
+    {
+      "google_place_id": "ChIJi3MwDPRYwokR7L20FGbVECU",
+      "name": "By Chloe",
+      "address": "185 Bleecker St, New York, NY",
+      "lat": 40.7293, "lng": -73.9997,
+      "rating": 4.3,
+      "cuisine_type": ["vegan", "fast_casual", "healthy"]
+    },
+    {
+      "google_place_id": "ChIJK1Gm8RpZwokRn2p5Z3PjfVo",
+      "name": "Gramercy Tavern",
+      "address": "42 E 20th St, New York, NY",
+      "lat": 40.7386, "lng": -73.9884,
+      "rating": 4.6,
+      "cuisine_type": ["american", "new_american", "fine_dining"]
+    }
+  ]
   ```
-  - **Done when:** `SELECT * FROM restaurants` returns 5 rows covering diverse cuisines.
+  - **Done when:** Querying `restaurants` returns 5 rows covering diverse cuisines.
   - **NOTE:** These Place IDs are approximate. If the Google Places import in Phase 1A fails with "Place not found," you may need to look up the correct Place IDs via the [Place ID Finder](https://developers.google.com/maps/documentation/places/web-service/place-id).
 - [ ] 7.3 Verify seed data from the frontend: in the `DiscoveryPage` `useEffect`, the Supabase query should now return 5 restaurants and the `user_profiles` query should return 3 personas. Log both to console and confirm.
   - **Done when:** Console shows 5 restaurant objects and 3 user profile objects.

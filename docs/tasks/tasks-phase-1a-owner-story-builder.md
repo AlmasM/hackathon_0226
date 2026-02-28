@@ -23,38 +23,59 @@ When you start, the following already exists:
 - **Shared types:** defined in `src/types/index.ts`
 - **Seed data:** 3 user personas + 5 mock restaurants in Supabase
 
-### Supabase Schema
+### Supabase Schema (JSON)
 
-```sql
-CREATE TABLE restaurants (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  google_place_id TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  address TEXT, lat FLOAT, lng FLOAT, rating FLOAT,
-  cuisine_type TEXT[], phone TEXT, website TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
+**`restaurants`**
+```json
+{
+  "table": "restaurants",
+  "columns": {
+    "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
+    "google_place_id":  { "type": "text", "unique": true, "required": true },
+    "name":             { "type": "text", "required": true },
+    "address":          { "type": "text" },
+    "lat":              { "type": "float" },
+    "lng":              { "type": "float" },
+    "rating":           { "type": "float" },
+    "cuisine_type":     { "type": "text[]" },
+    "phone":            { "type": "text" },
+    "website":          { "type": "text" },
+    "created_at":       { "type": "timestamptz", "default": "now()" }
+  }
+}
+```
 
-CREATE TABLE restaurant_images (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE,
-  image_url TEXT NOT NULL,
-  source TEXT DEFAULT 'google',        -- 'google' | 'owner_upload'
-  tags TEXT[],                          -- e.g. ['vegan', 'cocktail', 'steak']
-  slot_type TEXT DEFAULT 'personalized', -- 'intro' | 'personalized' | 'outro'
-  display_order INT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
+**`restaurant_images`**
+```json
+{
+  "table": "restaurant_images",
+  "columns": {
+    "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
+    "restaurant_id":    { "type": "uuid", "foreignKey": { "table": "restaurants", "column": "id", "onDelete": "cascade" }, "required": true },
+    "image_url":        { "type": "text", "required": true },
+    "source":           { "type": "text", "default": "google", "enum": ["google", "owner_upload"] },
+    "tags":             { "type": "text[]", "description": "AI-generated tags, e.g. ['vegan', 'cocktail', 'steak']" },
+    "slot_type":        { "type": "text", "default": "personalized", "enum": ["intro", "personalized", "outro"] },
+    "display_order":    { "type": "int" },
+    "created_at":       { "type": "timestamptz", "default": "now()" }
+  }
+}
+```
 
-CREATE TABLE story_templates (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE,
-  intro_image_id UUID REFERENCES restaurant_images(id),
-  outro_image_id UUID REFERENCES restaurant_images(id),
-  cta_text TEXT DEFAULT 'Book a Table',
-  cta_url TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
+**`story_templates`**
+```json
+{
+  "table": "story_templates",
+  "columns": {
+    "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
+    "restaurant_id":    { "type": "uuid", "foreignKey": { "table": "restaurants", "column": "id", "onDelete": "cascade" }, "required": true },
+    "intro_image_id":   { "type": "uuid", "foreignKey": { "table": "restaurant_images", "column": "id" } },
+    "outro_image_id":   { "type": "uuid", "foreignKey": { "table": "restaurant_images", "column": "id" } },
+    "cta_text":         { "type": "text", "default": "Book a Table" },
+    "cta_url":          { "type": "text" },
+    "created_at":       { "type": "timestamptz", "default": "now()" }
+  }
+}
 ```
 
 ### Shared TypeScript Types (`src/types/index.ts`)
