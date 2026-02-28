@@ -188,7 +188,7 @@ export default function RestaurantStoryPage() {
       <StoryPlayer
         segments={story.segments}
         restaurant={story.restaurant}
-        onClose={() => navigate(-1)}
+        onClose={() => navigate(id ? `/restaurant/${id}` : "/")}
         onCtaClick={handleCtaClick}
         personaLabel={activeProfile?.name}
       />

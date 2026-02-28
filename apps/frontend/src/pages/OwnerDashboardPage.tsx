@@ -7,6 +7,15 @@ const API_BASE =
   import.meta.env.VITE_API_URL ??
   "http://localhost:8000";
 
+/** Treat empty, example.com, or placeholder-like URLs as "no image" — show placeholder UI instead. */
+function isPlaceholderOrInvalidImageUrl(url: string | undefined): boolean {
+  if (!url || !url.trim()) return true;
+  const u = url.trim().toLowerCase();
+  if (u.includes("example.com") || u.includes("example.org")) return true;
+  if (u.startsWith("data:") && u.length < 100) return true; // tiny data URL placeholder
+  return false;
+}
+
 type RestaurantWithImages = Restaurant & { images: RestaurantImage[] };
 
 const SLOT_OPTIONS: Array<RestaurantImage["slot_type"]> = [
@@ -52,6 +61,50 @@ export default function OwnerDashboardPage() {
   const [importPlaceId, setImportPlaceId] = useState("");
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+
+  // --- Sync all restaurants from Google ---
+  const [syncAllLoading, setSyncAllLoading] = useState(false);
+  const [syncAllResult, setSyncAllResult] = useState<{
+    synced: number;
+    errors: Array<{ id: string; name?: string; error: string }>;
+  } | null>(null);
+
+  async function handleSyncAll() {
+    setSyncAllLoading(true);
+    setSyncAllResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/restaurants/sync-all`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setSyncAllResult({
+        synced: data.synced ?? 0,
+        errors: Array.isArray(data.errors) ? data.errors : [],
+      });
+      if (
+        restaurantId &&
+        (data.restaurants ?? []).some(
+          (r: { id: string }) => r.id === restaurantId,
+        )
+      ) {
+        fetchRestaurant();
+      }
+    } catch (e) {
+      setSyncAllResult({
+        synced: 0,
+        errors: [
+          {
+            id: "",
+            name: "",
+            error: e instanceof Error ? e.message : "Sync failed",
+          },
+        ],
+      });
+    } finally {
+      setSyncAllLoading(false);
+    }
+  }
 
   async function handleImport() {
     const placeId = importPlaceId.trim();
@@ -317,18 +370,30 @@ export default function OwnerDashboardPage() {
   }
 
   if (!restaurantId) {
-    return <div>Missing restaurant ID</div>;
+    return (
+      <div className="owner-dashboard owner-dashboard--error">
+        <p>Missing restaurant ID</p>
+      </div>
+    );
   }
 
   if (loading) {
-    return <div>Loading restaurant…</div>;
+    return (
+      <div className="owner-dashboard owner-dashboard--loading">
+        <p className="owner-dashboard__loading-text">Loading restaurant…</p>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div>
-        <p>Error: {error}</p>
-        <button type="button" onClick={fetchRestaurant}>
+      <div className="owner-dashboard owner-dashboard--error">
+        <p className="owner-dashboard__error-text">Error: {error}</p>
+        <button
+          type="button"
+          className="owner-dashboard__retry"
+          onClick={fetchRestaurant}
+        >
           Retry
         </button>
       </div>
@@ -342,121 +407,127 @@ export default function OwnerDashboardPage() {
   const images = restaurant.images ?? [];
 
   return (
-    <div style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
-      {/* 5.3 Restaurant header */}
-      <header
-        style={{
-          marginBottom: 24,
-          paddingBottom: 16,
-          borderBottom: "1px solid #ccc",
-        }}
-      >
-        <h1 style={{ margin: "0 0 8px 0" }}>{restaurant.name}</h1>
-        <p style={{ margin: 0, color: "#555" }}>{restaurant.address}</p>
-        <p style={{ margin: "4px 0 0 0" }}>
-          Rating: {restaurant.rating} · Cuisine:{" "}
-          {(restaurant.cuisine_type ?? []).join(", ") || "—"}
+    <div className="owner-dashboard">
+      <header className="owner-dashboard__header">
+        <h1 className="owner-dashboard__title">{restaurant.name}</h1>
+        <p className="owner-dashboard__address">{restaurant.address}</p>
+        <p className="owner-dashboard__meta">
+          ⭐ {restaurant.rating.toFixed(1)}
+          {(restaurant.cuisine_type ?? []).length > 0 && (
+            <>
+              {" "}
+              · {(restaurant.cuisine_type ?? []).join(", ").replace(/_/g, " ")}
+            </>
+          )}
         </p>
       </header>
 
-      {/* Actions: Import, Auto-Tag, Add Image */}
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>Actions</h2>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 16,
-            alignItems: "flex-end",
-          }}
-        >
-          <div>
-            <label style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+      <section className="owner-dashboard__actions">
+        <h2 className="owner-dashboard__section-title">Actions</h2>
+        <div className="owner-dashboard__action-row">
+          <div className="owner-dashboard__field">
+            <label className="owner-dashboard__field-label">
               Import from Google (place_id)
             </label>
-            <input
-              type="text"
-              value={importPlaceId}
-              onChange={(e) => setImportPlaceId(e.target.value)}
-              placeholder="ChIJ..."
-              style={{ marginRight: 8, padding: "6px 10px", width: 220 }}
-            />
-            <button type="button" onClick={handleImport} disabled={importing}>
-              {importing ? "Importing…" : "Import from Google"}
-            </button>
+            <div className="owner-dashboard__input-group">
+              <input
+                type="text"
+                value={importPlaceId}
+                onChange={(e) => setImportPlaceId(e.target.value)}
+                placeholder="ChIJ..."
+                className="owner-dashboard__input"
+              />
+              <button
+                type="button"
+                onClick={handleImport}
+                disabled={importing}
+                className="owner-dashboard__btn owner-dashboard__btn--primary"
+              >
+                {importing ? "Importing…" : "Import from Google"}
+              </button>
+            </div>
             {importError && (
-              <p style={{ color: "red", margin: "4px 0 0 0", fontSize: 12 }}>
-                {importError}
-              </p>
+              <p className="owner-dashboard__field-error">{importError}</p>
             )}
           </div>
-          <div>
-            <button
-              type="button"
-              onClick={handleTagAll}
-              disabled={tagAllLoading}
-            >
-              {tagAllLoading ? "Tagging…" : "Auto-Tag All"}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleTagAll}
+            disabled={tagAllLoading}
+            className="owner-dashboard__btn owner-dashboard__btn--secondary"
+          >
+            {tagAllLoading ? "Tagging…" : "Auto-Tag All"}
+          </button>
+          <button
+            type="button"
+            onClick={handleSyncAll}
+            disabled={syncAllLoading}
+            className="owner-dashboard__btn owner-dashboard__btn--secondary"
+            title="Fetch name, address, rating, phone, website and photos from Google for every restaurant in the list"
+          >
+            {syncAllLoading ? "Syncing…" : "Sync all restaurants from Google"}
+          </button>
+          {syncAllResult && (
+            <p className="owner-dashboard__field-hint" style={{ marginTop: 8 }}>
+              Synced {syncAllResult.synced} restaurant(s).
+              {syncAllResult.errors.length > 0 &&
+                ` Errors: ${syncAllResult.errors.map((e) => e.name || e.id || e.error).join(", ")}`}
+            </p>
+          )}
           <form
             onSubmit={handleAddImage}
-            style={{ display: "flex", alignItems: "center", gap: 8 }}
+            className="owner-dashboard__field owner-dashboard__add-image-form"
           >
-            <input
-              type="url"
-              value={newImageUrl}
-              onChange={(e) => setNewImageUrl(e.target.value)}
-              placeholder="Image URL"
-              style={{ padding: "6px 10px", width: 240 }}
-            />
-            <button type="submit">Add Image</button>
+            <label className="owner-dashboard__field-label">
+              Add image by URL
+            </label>
+            <div className="owner-dashboard__input-group">
+              <input
+                type="url"
+                value={newImageUrl}
+                onChange={(e) => setNewImageUrl(e.target.value)}
+                placeholder="https://..."
+                className="owner-dashboard__input"
+              />
+              <button
+                type="submit"
+                className="owner-dashboard__btn owner-dashboard__btn--primary"
+              >
+                Add Image
+              </button>
+            </div>
             {addImageError && (
-              <span style={{ color: "red", fontSize: 12 }}>
-                {addImageError}
-              </span>
+              <p className="owner-dashboard__field-error">{addImageError}</p>
             )}
           </form>
         </div>
       </section>
 
-      {/* 5.4 Image grid */}
-      <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>Images</h2>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-          gap: 16,
-          marginBottom: 32,
-        }}
-      >
-        {images.map((img) => (
-          <ImageCard
-            key={img.id}
-            image={img}
-            onSlotChange={(slot_type) => updateImage(img.id, { slot_type })}
-            onDelete={() => deleteImage(img.id)}
-            onRemoveTag={(tag) => removeTag(img, tag)}
-            onAddTag={(tag) => addTag(img, tag)}
-            onSetAsIntro={() => handleSetAsIntro(img.id)}
-            onSetAsOutro={() => handleSetAsOutro(img.id)}
-          />
-        ))}
-      </div>
+      <section className="owner-dashboard__images">
+        <h2 className="owner-dashboard__section-title">Images</h2>
+        <div className="owner-dashboard__image-grid">
+          {images.map((img) => (
+            <ImageCard
+              key={img.id}
+              image={img}
+              onSlotChange={(slot_type) => updateImage(img.id, { slot_type })}
+              onDelete={() => deleteImage(img.id)}
+              onRemoveTag={(tag) => removeTag(img, tag)}
+              onAddTag={(tag) => addTag(img, tag)}
+              onSetAsIntro={() => handleSetAsIntro(img.id)}
+              onSetAsOutro={() => handleSetAsOutro(img.id)}
+            />
+          ))}
+        </div>
+      </section>
 
-      {/* Story template builder (bottom) */}
-      <section style={{ marginTop: 24, marginBottom: 16 }}>
+      <section className="owner-dashboard__preview">
         <button
           type="button"
-          onClick={() => navigate(`/restaurant/${restaurantId}?preview=true`)}
-          style={{
-            padding: "8px 16px",
-            background: "#f0f0f0",
-            border: "1px solid #ccc",
-            borderRadius: 8,
-            cursor: "pointer",
-            fontSize: 14,
-          }}
+          onClick={() =>
+            navigate(`/restaurant/${restaurantId}/story?preview=true`)
+          }
+          className="owner-dashboard__btn owner-dashboard__btn--preview"
         >
           Preview Story
         </button>
@@ -501,104 +572,53 @@ function ImageCard({
   const [newTag, setNewTag] = useState("");
 
   const tags = image.tags ?? [];
+  const showImage = !isPlaceholderOrInvalidImageUrl(image.image_url);
 
   return (
-    <div
-      style={{
-        border: "1px solid #ddd",
-        borderRadius: 8,
-        overflow: "hidden",
-        padding: 12,
-        background: "#fafafa",
-      }}
-    >
-      <div style={{ position: "relative", marginBottom: 8 }}>
-        <img
-          src={image.image_url}
-          alt=""
-          style={{
-            width: "100%",
-            height: 140,
-            objectFit: "cover",
-            display: "block",
-          }}
-        />
-        <span
-          style={{
-            position: "absolute",
-            top: 6,
-            left: 6,
-            background: "#333",
-            color: "#fff",
-            padding: "2px 8px",
-            borderRadius: 4,
-            fontSize: 11,
-          }}
-        >
-          {image.slot_type}
-        </span>
+    <div className="owner-image-card">
+      <div className="owner-image-card__media">
+        {showImage ? (
+          <img
+            src={image.image_url}
+            alt=""
+            className="owner-image-card__thumb"
+          />
+        ) : (
+          <div className="owner-image-card__placeholder">No image</div>
+        )}
+        <span className="owner-image-card__slot-badge">{image.slot_type}</span>
         <button
           type="button"
           onClick={onDelete}
-          style={{
-            position: "absolute",
-            top: 6,
-            right: 6,
-            background: "#c00",
-            color: "#fff",
-            border: "none",
-            borderRadius: 4,
-            padding: "4px 8px",
-            cursor: "pointer",
-            fontSize: 12,
-          }}
+          className="owner-image-card__delete"
+          aria-label="Delete image"
         >
           Delete
         </button>
       </div>
-      <div
-        style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}
-      >
+      <div className="owner-image-card__actions">
         <button
           type="button"
           onClick={onSetAsIntro}
-          style={{
-            padding: "4px 8px",
-            fontSize: 11,
-            background: "#2a7",
-            color: "#fff",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer",
-          }}
+          className="owner-image-card__btn owner-image-card__btn--intro"
         >
           Set as Intro
         </button>
         <button
           type="button"
           onClick={onSetAsOutro}
-          style={{
-            padding: "4px 8px",
-            fontSize: 11,
-            background: "#27a",
-            color: "#fff",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer",
-          }}
+          className="owner-image-card__btn owner-image-card__btn--outro"
         >
           Set as Outro
         </button>
       </div>
-      <label style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-        Slot
-      </label>
+      <label className="owner-image-card__label">Slot</label>
       <select
         value={image.slot_type}
         onChange={(e) =>
           onSlotChange(e.target.value as RestaurantImage["slot_type"])
         }
-        style={{ width: "100%", marginBottom: 8, padding: "4px 8px" }}
+        className="owner-image-card__select"
       >
         {SLOT_OPTIONS.map((s) => (
           <option key={s} value={s}>
@@ -606,31 +626,21 @@ function ImageCard({
           </option>
         ))}
       </select>
-      <div style={{ marginBottom: 6 }}>
-        <span style={{ fontSize: 12, marginBottom: 4, display: "block" }}>
-          Tags
-        </span>
-        <div
-          style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}
-        >
+      <div className="owner-image-card__tags">
+        <span className="owner-image-card__label">Tags</span>
+        <div className="owner-image-card__tag-list">
           {tags.map((t) => (
             <span
               key={t}
               onClick={() => onRemoveTag(t)}
-              style={{
-                background: "#e0e0e0",
-                padding: "2px 8px",
-                borderRadius: 4,
-                fontSize: 12,
-                cursor: "pointer",
-              }}
+              className="owner-image-card__tag"
               title="Click to remove"
             >
               {t} ×
             </span>
           ))}
         </div>
-        <div style={{ display: "flex", gap: 4 }}>
+        <div className="owner-image-card__tag-input-wrap">
           <input
             type="text"
             value={newTag}
@@ -643,7 +653,7 @@ function ImageCard({
               }
             }}
             placeholder="Add tag"
-            style={{ flex: 1, padding: "4px 8px", fontSize: 12 }}
+            className="owner-image-card__tag-input"
           />
           <button
             type="button"
@@ -651,6 +661,7 @@ function ImageCard({
               onAddTag(newTag);
               setNewTag("");
             }}
+            className="owner-image-card__btn owner-image-card__btn--add"
           >
             Add
           </button>
@@ -698,86 +709,41 @@ function StoryTemplateSection({
 
   if (templateLoading) {
     return (
-      <section
-        style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid #ccc" }}
-      >
-        <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>Story template</h2>
-        <p>Loading…</p>
+      <section className="story-template-section story-template-section--loading">
+        <h2 className="story-template-section__title">Story template</h2>
+        <p className="story-template-section__loading-text">Loading…</p>
       </section>
     );
   }
 
   return (
-    <section
-      style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid #ccc" }}
-    >
-      <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>Story template</h2>
-      {/* 3-slot visual layout: [Intro] → [Personalized pool] → [Outro + CTA + Save] */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 24,
-          alignItems: "start",
-          marginBottom: 24,
-          maxWidth: 720,
-        }}
-      >
-        {/* Left: Intro slot with thumbnail */}
-        <div
-          style={{
-            border: "2px solid #ddd",
-            borderRadius: 12,
-            padding: 16,
-            background: "#f9f9f9",
-            minHeight: 180,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              marginBottom: 8,
-              color: "#333",
-            }}
-          >
-            Intro image
-          </div>
-          {introImage ? (
+    <section className="story-template-section">
+      <h2 className="story-template-section__title">Story template</h2>
+      <p className="story-template-section__description">
+        Define the order of your story: opening image, personalized middle, and
+        closing with a call-to-action.
+      </p>
+      <div className="story-template-section__grid">
+        <div className="story-template-card story-template-card--intro">
+          <span className="story-template-card__step">1</span>
+          <h3 className="story-template-card__label">Intro image</h3>
+          {introImage &&
+          !isPlaceholderOrInvalidImageUrl(introImage.image_url) ? (
             <img
               src={introImage.image_url}
               alt="Intro"
-              style={{
-                width: "100%",
-                height: 120,
-                objectFit: "cover",
-                borderRadius: 8,
-                display: "block",
-                marginBottom: 8,
-              }}
+              className="story-template-card__thumb"
             />
           ) : (
-            <div
-              style={{
-                width: "100%",
-                height: 120,
-                background: "#e8e8e8",
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#888",
-                fontSize: 12,
-                marginBottom: 8,
-              }}
-            >
-              No intro selected
+            <div className="story-template-card__placeholder">
+              {introImage ? "Your image here" : "No intro selected"}
             </div>
           )}
           <select
             value={introId}
             onChange={(e) => setIntroId(e.target.value)}
-            style={{ width: "100%", padding: "6px 8px", fontSize: 12 }}
+            className="story-template-card__select"
+            aria-label="Choose intro image"
           >
             <option value="">— Select intro —</option>
             {images.map((img) => (
@@ -788,96 +754,38 @@ function StoryTemplateSection({
           </select>
         </div>
 
-        {/* Center: Personalized pool count */}
-        <div
-          style={{
-            border: "2px solid #ddd",
-            borderRadius: 12,
-            padding: 16,
-            background: "#f9f9f9",
-            minHeight: 180,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              marginBottom: 8,
-              color: "#333",
-            }}
-          >
-            Personalized pool
-          </div>
-          <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "#555" }}>
-            {personalizedCount} image{personalizedCount !== 1 ? "s" : ""} in
-            personalized pool
+        <div className="story-template-card story-template-card--pool">
+          <span className="story-template-card__step">2</span>
+          <h3 className="story-template-card__label">Personalized pool</h3>
+          <p className="story-template-card__count">
+            {personalizedCount} image{personalizedCount !== 1 ? "s" : ""}
           </p>
-          <div style={{ fontSize: 12, color: "#888" }}>
+          <p className="story-template-card__hint">
             Use &quot;Set as Intro&quot; / &quot;Set as Outro&quot; on image
-            cards or the slot dropdown.
-          </div>
+            cards above to assign the first and last frame.
+          </p>
         </div>
 
-        {/* Right: Outro slot with thumbnail + CTA + Save */}
-        <div
-          style={{
-            border: "2px solid #ddd",
-            borderRadius: 12,
-            padding: 16,
-            background: "#f9f9f9",
-            minHeight: 180,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              marginBottom: 8,
-              color: "#333",
-            }}
-          >
-            Outro image
-          </div>
-          {outroImage ? (
+        <div className="story-template-card story-template-card--outro">
+          <span className="story-template-card__step">3</span>
+          <h3 className="story-template-card__label">Outro & CTA</h3>
+          {outroImage &&
+          !isPlaceholderOrInvalidImageUrl(outroImage.image_url) ? (
             <img
               src={outroImage.image_url}
               alt="Outro"
-              style={{
-                width: "100%",
-                height: 120,
-                objectFit: "cover",
-                borderRadius: 8,
-                display: "block",
-                marginBottom: 8,
-              }}
+              className="story-template-card__thumb"
             />
           ) : (
-            <div
-              style={{
-                width: "100%",
-                height: 120,
-                background: "#e8e8e8",
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#888",
-                fontSize: 12,
-                marginBottom: 8,
-              }}
-            >
-              No outro selected
+            <div className="story-template-card__placeholder">
+              {outroImage ? "Your image here" : "No outro selected"}
             </div>
           )}
           <select
             value={outroId}
             onChange={(e) => setOutroId(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "6px 8px",
-              fontSize: 12,
-              marginBottom: 12,
-            }}
+            className="story-template-card__select"
+            aria-label="Choose outro image"
           >
             <option value="">— Select outro —</option>
             {images.map((img) => (
@@ -886,46 +794,35 @@ function StoryTemplateSection({
               </option>
             ))}
           </select>
-          <div style={{ marginBottom: 8 }}>
-            <label style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-              CTA text
-            </label>
+          <div className="story-template-card__field">
+            <label className="story-template-card__field-label">CTA text</label>
             <input
               type="text"
               value={ctaText}
               onChange={(e) => setCtaText(e.target.value)}
-              style={{ width: "100%", padding: "6px 8px" }}
+              className="story-template-card__input"
+              placeholder="e.g. Book a Table"
             />
           </div>
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+          <div className="story-template-card__field">
+            <label className="story-template-card__field-label">
               CTA URL (optional)
             </label>
             <input
               type="url"
               value={ctaUrl}
               onChange={(e) => setCtaUrl(e.target.value)}
-              style={{ width: "100%", padding: "6px 8px" }}
+              className="story-template-card__input"
+              placeholder="https://..."
             />
           </div>
           <button
             type="button"
             onClick={onSave}
             disabled={templateSaving || !introId || !outroId}
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              background: "#333",
-              color: "#fff",
-              border: "none",
-              borderRadius: 8,
-              cursor:
-                templateSaving || !introId || !outroId
-                  ? "not-allowed"
-                  : "pointer",
-            }}
+            className="story-template-card__save"
           >
-            {templateSaving ? "Saving…" : "Save Template"}
+            {templateSaving ? "Saving…" : "Save template"}
           </button>
         </div>
       </div>

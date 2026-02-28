@@ -11,7 +11,7 @@ from api.data_store import load_restaurants, save_restaurants, load_images, save
 from api.health import get_health_payload
 from api.image_tagging import tag_image_from_url
 from api.personalize import handle_personalize, personalize_story
-from api.places import fetch_place_details, resolve_photo_url, map_place_to_restaurant
+from api.places import fetch_place_details, fetch_place_reviews, resolve_photo_url, map_place_to_restaurant
 
 load_dotenv()
 
@@ -117,6 +117,68 @@ def import_restaurant():
     return out, 201
 
 
+@app.post("/api/restaurants/sync-all")
+def sync_all_restaurants():
+    """
+    Fetch Google Place details (name, address, rating, phone, website, photos) for every
+    restaurant in the list that has a google_place_id. Updates restaurants and their
+    Google-sourced images so all have the same "pulled" data as a single import.
+    """
+    api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+    if not api_key:
+        return {"error": "GOOGLE_PLACES_API_KEY is not set"}, 503
+
+    restaurants = load_restaurants()
+    images = load_images()
+    synced = []
+    errors = []
+
+    for r in restaurants:
+        place_id = (r.get("google_place_id") or "").strip()
+        if not place_id:
+            continue
+        restaurant_id = r["id"]
+        try:
+            details = fetch_place_details(place_id, api_key)
+        except requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response is not None else 0
+            errors.append({"id": restaurant_id, "name": r.get("name"), "error": f"HTTP {status}"})
+            continue
+        except requests.exceptions.RequestException as e:
+            errors.append({"id": restaurant_id, "name": r.get("name"), "error": str(e)})
+            continue
+
+        restaurant = map_place_to_restaurant(place_id, details, restaurant_id)
+        for i, existing in enumerate(restaurants):
+            if existing.get("id") == restaurant_id:
+                restaurants[i] = restaurant
+                break
+
+        images = [img for img in images if not (img.get("restaurant_id") == restaurant_id and img.get("source") == "google")]
+        photos = details.get("photos") or []
+        for idx, photo in enumerate(photos):
+            photo_name = photo.get("name") if isinstance(photo, dict) else None
+            if not photo_name:
+                continue
+            image_url = resolve_photo_url(photo_name, api_key)
+            if not image_url:
+                continue
+            images.append({
+                "id": str(uuid.uuid4()),
+                "restaurant_id": restaurant_id,
+                "image_url": image_url,
+                "source": "google",
+                "tags": [],
+                "slot_type": "personalized",
+                "display_order": idx,
+            })
+        synced.append({"id": restaurant_id, "name": restaurant.get("name")})
+
+    save_restaurants(restaurants)
+    save_images(images)
+    return {"synced": len(synced), "restaurants": synced, "errors": errors}, 200
+
+
 # --- User profiles (Task 7.0) ---
 
 
@@ -132,9 +194,17 @@ def get_user_profiles():
 
 @app.get("/api/restaurants")
 def get_restaurants():
-    """3.1 List all restaurants. Returns JSON array (Restaurant[])."""
+    """3.1 List all restaurants with thumbnail_url (first image from Google/owner images)."""
     restaurants = load_restaurants()
-    return restaurants, 200
+    images = load_images()
+    out = []
+    for r in restaurants:
+        rid = r.get("id")
+        rest_images = [img for img in images if img.get("restaurant_id") == rid]
+        sorted_images = sorted(rest_images, key=lambda x: x.get("display_order", 0))
+        thumbnail_url = sorted_images[0].get("image_url") if sorted_images else None
+        out.append({**r, "thumbnail_url": thumbnail_url})
+    return out, 200
 
 
 @app.get("/api/restaurants/<restaurant_id>")
@@ -148,6 +218,26 @@ def get_restaurant(restaurant_id):
     restaurant_images = [img for img in images if img["restaurant_id"] == restaurant_id]
     out = {**restaurant, "images": restaurant_images}
     return out, 200
+
+
+@app.get("/api/restaurants/<restaurant_id>/google-reviews")
+def get_restaurant_google_reviews(restaurant_id):
+    """Fetch reviews and review count from Google Places for this restaurant (by google_place_id)."""
+    api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+    if not api_key:
+        return {"error": "GOOGLE_PLACES_API_KEY is not set"}, 503
+    restaurants = load_restaurants()
+    restaurant = next((r for r in restaurants if r.get("id") == restaurant_id), None)
+    if not restaurant:
+        return {"error": "Restaurant not found"}, 404
+    place_id = (restaurant.get("google_place_id") or "").strip()
+    if not place_id:
+        return {"reviewCount": 0, "reviews": []}, 200
+    try:
+        data = fetch_place_reviews(place_id, api_key)
+        return data, 200
+    except Exception as e:
+        return {"error": str(e), "reviewCount": 0, "reviews": []}, 502
 
 
 @app.put("/api/restaurants/<restaurant_id>/images/<image_id>")

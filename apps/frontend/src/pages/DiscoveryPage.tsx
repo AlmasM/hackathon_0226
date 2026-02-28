@@ -2,7 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Map, Marker } from "@vis.gl/react-google-maps";
 import { useHasMapsKey, useMapsKeyContext } from "../contexts/MapsKeyContext";
-import type { Restaurant, RestaurantWithImages } from "../types";
+import type { Restaurant, RestaurantListItem } from "../types";
+import type { PlaceReview } from "../types";
 import RestaurantCard from "../components/RestaurantCard";
 
 const API_BASE =
@@ -32,18 +33,18 @@ export default function DiscoveryPage() {
   const navigate = useNavigate();
   const hasMapsKey = useHasMapsKey();
   const { mapAuthFailed } = useMapsKeyContext();
-  const [restaurants, setRestaurants] = useState<RestaurantWithImages[]>([]);
+  const [restaurants, setRestaurants] = useState<RestaurantListItem[]>([]);
+  const [reviewsById, setReviewsById] = useState<
+    Record<string, { reviewCount: number; reviews: PlaceReview[] }>
+  >({});
 
   const mapCenter = useMemo(
     () => centerFromRestaurants(restaurants),
     [restaurants],
   );
 
-  function firstImageUrl(r: RestaurantWithImages): string | null {
-    const imgs = r.restaurant_images;
-    if (!imgs?.length) return null;
-    const sorted = [...imgs].sort((a, b) => a.display_order - b.display_order);
-    return sorted[0].image_url ?? null;
+  function firstImageUrl(r: RestaurantListItem): string | null {
+    return r.thumbnail_url ?? null;
   }
 
   useEffect(() => {
@@ -61,6 +62,36 @@ export default function DiscoveryPage() {
     fetchRestaurants();
   }, []);
 
+  useEffect(() => {
+    if (!restaurants.length) return;
+    let cancelled = false;
+    const acc: Record<string, { reviewCount: number; reviews: PlaceReview[] }> =
+      {};
+    Promise.all(
+      restaurants.map(async (r) => {
+        try {
+          const res = await fetch(
+            `${API_BASE}/api/restaurants/${r.id}/google-reviews`,
+          );
+          if (!res.ok || cancelled) return;
+          const data = await res.json();
+          if (cancelled) return;
+          acc[r.id] = {
+            reviewCount: data.reviewCount ?? 0,
+            reviews: Array.isArray(data.reviews) ? data.reviews : [],
+          };
+        } catch {
+          acc[r.id] = { reviewCount: 0, reviews: [] };
+        }
+      }),
+    ).then(() => {
+      if (!cancelled) setReviewsById((prev) => ({ ...prev, ...acc }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurants]);
+
   return (
     <div className="discovery-page">
       <section className="discovery-map-container" aria-label="Discovery Map">
@@ -70,15 +101,24 @@ export default function DiscoveryPage() {
             defaultZoom={13}
             gestureHandling="greedy"
             disableDefaultUI={false}
+            style={{ width: "100%", height: "100%", minHeight: "200px" }}
           >
-            {restaurants.map((restaurant) => (
-              <Marker
-                key={restaurant.id}
-                position={{ lat: restaurant.lat, lng: restaurant.lng }}
-                onClick={() => navigate(`/restaurant/${restaurant.id}`)}
-                title={restaurant.name}
-              />
-            ))}
+            {restaurants
+              .filter(
+                (r) =>
+                  typeof r.lat === "number" &&
+                  typeof r.lng === "number" &&
+                  Number.isFinite(r.lat) &&
+                  Number.isFinite(r.lng),
+              )
+              .map((restaurant) => (
+                <Marker
+                  key={restaurant.id}
+                  position={{ lat: restaurant.lat, lng: restaurant.lng }}
+                  onClick={() => navigate(`/restaurant/${restaurant.id}`)}
+                  title={restaurant.name}
+                />
+              ))}
           </Map>
         ) : (
           <div
@@ -128,15 +168,20 @@ export default function DiscoveryPage() {
         aria-label="Restaurant Cards"
       >
         <ul className="discovery-cards-list">
-          {restaurants.map((restaurant) => (
-            <li key={restaurant.id}>
-              <RestaurantCard
-                restaurant={restaurant}
-                thumbnailUrl={firstImageUrl(restaurant)}
-                onClick={() => navigate(`/restaurant/${restaurant.id}`)}
-              />
-            </li>
-          ))}
+          {restaurants.map((restaurant) => {
+            const reviews = reviewsById[restaurant.id];
+            return (
+              <li key={restaurant.id}>
+                <RestaurantCard
+                  restaurant={restaurant}
+                  thumbnailUrl={firstImageUrl(restaurant)}
+                  reviewCount={reviews?.reviewCount ?? null}
+                  firstReview={reviews?.reviews?.[0] ?? null}
+                  onClick={() => navigate(`/restaurant/${restaurant.id}`)}
+                />
+              </li>
+            );
+          })}
         </ul>
       </section>
     </div>

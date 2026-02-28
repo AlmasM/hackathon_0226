@@ -16,6 +16,19 @@ export interface RestaurantWithImages extends Restaurant {
   restaurant_images?: RestaurantImage[];
 }
 
+/** Restaurant as returned by list API with thumbnail from Google/owner images */
+export interface RestaurantListItem extends Restaurant {
+  thumbnail_url?: string | null;
+}
+
+/** Google Place review snippet for cards */
+export interface PlaceReview {
+  author: string;
+  text: string;
+  rating?: number;
+  relativeTime?: string;
+}
+
 export interface RestaurantImage {
   id: string;
   restaurant_id: string;

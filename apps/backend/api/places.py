@@ -25,7 +25,6 @@ def resolve_photo_url(photo_name: str, api_key: str) -> str | None:
     Resolve a photo name to a usable image URL via Places Photo Media endpoint.
     Follows redirect and returns the final URL, or None on failure.
     """
-    # photo_name is e.g. "places/ChIJ.../photos/..."
     url = f"{PLACES_BASE}/{photo_name}/media"
     params = {"maxWidthPx": 800, "key": api_key}
     try:
@@ -66,4 +65,43 @@ def map_place_to_restaurant(place_id: str, details: dict, restaurant_id: str) ->
         "cuisine_type": cuisine_type,
         "phone": details.get("nationalPhoneNumber"),
         "website": details.get("websiteUri"),
+    }
+
+
+REVIEWS_FIELD_MASK = "reviews,userRatingCount"
+
+
+def fetch_place_reviews(place_id: str, api_key: str) -> dict:
+    """
+    Fetch reviews and user rating count from Google Places API (New).
+    Returns {"reviewCount": int, "reviews": [{"author": str, "text": str, "rating": float, "relativeTime": str}]}.
+    """
+    url = f"{PLACES_BASE}/places/{place_id}"
+    headers = {
+        "X-Goog-Api-Key": api_key,
+        "X-Goog-FieldMask": REVIEWS_FIELD_MASK,
+    }
+    resp = requests.get(url, headers=headers, timeout=15)
+    resp.raise_for_status()
+    data = resp.json()
+    raw_reviews = data.get("reviews") or []
+    reviews = []
+    for r in raw_reviews:
+        if not isinstance(r, dict):
+            continue
+        author = (r.get("authorAttribution") or {}).get("displayName") or "A Google user"
+        text = (r.get("text") or {}).get("text") if isinstance(r.get("text"), dict) else (r.get("text") or "")
+        rating = r.get("rating")
+        if rating is not None:
+            rating = float(rating)
+        rel = (r.get("relativePublishTimeDescription") or "").strip()
+        reviews.append({
+            "author": author,
+            "text": text if isinstance(text, str) else str(text or ""),
+            "rating": rating,
+            "relativeTime": rel,
+        })
+    return {
+        "reviewCount": data.get("userRatingCount") or 0,
+        "reviews": reviews,
     }

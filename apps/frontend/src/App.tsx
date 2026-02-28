@@ -6,6 +6,7 @@ import { UserProfileProvider } from "./contexts/UserProfileContext";
 import { logMapsConfig } from "./lib/mapsLogger";
 import PersonaSwitcher from "./components/PersonaSwitcher";
 import DiscoveryPage from "./pages/DiscoveryPage";
+import RestaurantDetailPage from "./pages/RestaurantDetailPage";
 import RestaurantStoryPage from "./pages/RestaurantStoryPage";
 import OwnerDashboardPage from "./pages/OwnerDashboardPage";
 
@@ -18,7 +19,8 @@ const appContent = (
       <>
         <Routes>
           <Route path="/" element={<DiscoveryPage />} />
-          <Route path="/restaurant/:id" element={<RestaurantStoryPage />} />
+          <Route path="/restaurant/:id" element={<RestaurantDetailPage />} />
+          <Route path="/restaurant/:id/story" element={<RestaurantStoryPage />} />
           <Route
             path="/owner/:restaurantId"
             element={<OwnerDashboardPage />}
