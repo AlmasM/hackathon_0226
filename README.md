@@ -31,13 +31,13 @@ npm install
 Run frontend with Nx:
 
 ```bash
-nx serve frontend
+npx nx run frontend:serve
 ```
 
 Run backend with Nx:
 
 ```bash
-nx serve backend
+npx nx run backend:serve
 ```
 
 Run frontend and backend together:
@@ -49,7 +49,7 @@ npm run dev
 Equivalent Nx command:
 
 ```bash
-nx run-many -t serve --projects=frontend,backend --parallel=2
+npx nx run-many -t serve --projects=frontend,backend --parallel=2
 ```
 
 You can still run directly inside frontend app:
@@ -64,7 +64,7 @@ npm run dev
 From repo root:
 
 ```bash
-nx build frontend
+npx nx run frontend:build
 ```
 
 ## Backend API
@@ -77,7 +77,7 @@ The backend is a Python serverless function intended for Vercel.
 For local backend-only development with Nx:
 
 ```bash
-nx serve backend
+npx nx run backend:serve
 ```
 
 Then test:
