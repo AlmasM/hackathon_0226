@@ -15,68 +15,26 @@ The tags on images are the **critical link** between owner content and consumer 
 
 When you start, the following already exists:
 
-- **Frontend:** `apps/frontend/` — React 18 + Vite + TypeScript + React Router + Supabase JS client
-- **Backend:** `apps/backend/` — Python Flask on Vercel serverless + Supabase Python client + flask-cors
-- **Database:** Supabase with tables `restaurants`, `restaurant_images`, `story_templates`, `user_profiles`
-- **Env vars configured:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GOOGLE_MAPS_API_KEY`, `GOOGLE_PLACES_API_KEY`, `GEMINI_API_KEY`
+- **Frontend:** `apps/frontend/` — React 18 + Vite + TypeScript + React Router
+- **Backend:** `apps/backend/` — Python Flask on Vercel serverless + flask-cors
+- **Data Layer:** JSON files in `apps/backend/data/` (`restaurants.json`, `restaurant_images.json`, `story_templates.json`, `user_profiles.json`)
+- **Env vars configured:** `GOOGLE_PLACES_API_KEY`, `GEMINI_API_KEY`
 - **Frontend routes:** `/`, `/restaurant/:id`, `/owner/:restaurantId`
 - **Shared types:** defined in `src/types/index.ts`
-- **Seed data:** 3 user personas + 5 mock restaurants in Supabase
+- **Seed data:** 3 user personas + 5 mock restaurants in JSON data files
 
-### Supabase Schema (JSON)
+### Data File Structure
 
-**`restaurants`**
-```json
-{
-  "table": "restaurants",
-  "columns": {
-    "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
-    "google_place_id":  { "type": "text", "unique": true, "required": true },
-    "name":             { "type": "text", "required": true },
-    "address":          { "type": "text" },
-    "lat":              { "type": "float" },
-    "lng":              { "type": "float" },
-    "rating":           { "type": "float" },
-    "cuisine_type":     { "type": "text[]" },
-    "phone":            { "type": "text" },
-    "website":          { "type": "text" },
-    "created_at":       { "type": "timestamptz", "default": "now()" }
-  }
-}
-```
+Data is stored as JSON files in `apps/backend/data/`. The backend reads/writes these via `apps/backend/api/data_store.py` (functions like `load_restaurants()`, `save_restaurants(data)`, etc.).
 
-**`restaurant_images`**
-```json
-{
-  "table": "restaurant_images",
-  "columns": {
-    "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
-    "restaurant_id":    { "type": "uuid", "foreignKey": { "table": "restaurants", "column": "id", "onDelete": "cascade" }, "required": true },
-    "image_url":        { "type": "text", "required": true },
-    "source":           { "type": "text", "default": "google", "enum": ["google", "owner_upload"] },
-    "tags":             { "type": "text[]", "description": "AI-generated tags, e.g. ['vegan', 'cocktail', 'steak']" },
-    "slot_type":        { "type": "text", "default": "personalized", "enum": ["intro", "personalized", "outro"] },
-    "display_order":    { "type": "int" },
-    "created_at":       { "type": "timestamptz", "default": "now()" }
-  }
-}
-```
+| File | Description |
+|------|-------------|
+| `apps/backend/data/restaurants.json` | Array of `Restaurant` objects |
+| `apps/backend/data/restaurant_images.json` | Array of `RestaurantImage` objects |
+| `apps/backend/data/story_templates.json` | Array of `StoryTemplate` objects |
+| `apps/backend/data/user_profiles.json` | Array of `UserProfile` objects |
 
-**`story_templates`**
-```json
-{
-  "table": "story_templates",
-  "columns": {
-    "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
-    "restaurant_id":    { "type": "uuid", "foreignKey": { "table": "restaurants", "column": "id", "onDelete": "cascade" }, "required": true },
-    "intro_image_id":   { "type": "uuid", "foreignKey": { "table": "restaurant_images", "column": "id" } },
-    "outro_image_id":   { "type": "uuid", "foreignKey": { "table": "restaurant_images", "column": "id" } },
-    "cta_text":         { "type": "text", "default": "Book a Table" },
-    "cta_url":          { "type": "text" },
-    "created_at":       { "type": "timestamptz", "default": "now()" }
-  }
-}
-```
+See the TypeScript types below for the shape of each object.
 
 ### Shared TypeScript Types (`src/types/index.ts`)
 
@@ -90,7 +48,7 @@ interface UserProfile { id: string; name: string; avatar_url?: string; persona_t
 ## What Dev B is Building in Parallel
 
 Dev B is building the **consumer-facing Story Viewer** — the Instagram-style reel at `/restaurant/:id`. They consume the data Dev A creates:
-- Fetch the story template + images via API
+- Fetch the story template + images via Flask API endpoints
 - Personalize which "pool" images to show based on the active user persona
 - Ken Burns animations, swipe navigation, persona switcher
 
@@ -111,6 +69,7 @@ Dev B is building the **consumer-facing Story Viewer** — the Instagram-style r
 - `apps/frontend/src/types/index.ts` — Shared TypeScript types
 - `apps/frontend/src/App.tsx` — Router config (routes already declared)
 - `apps/backend/requirements.txt` — Python dependencies (add `google-generativeai` if needed)
+- `apps/backend/api/data_store.py` — JSON file read/write utilities
 
 ### Notes
 
@@ -124,18 +83,18 @@ Dev B is building the **consumer-facing Story Viewer** — the Instagram-style r
 
 ### [ ] 1.0 Google Places API Integration (Backend)
 
-`description`: Build `POST /api/restaurants/import` — the critical data pipeline that imports a restaurant from Google Places API (New), fetches its photos, and saves everything to Supabase.
+`description`: Build `POST /api/restaurants/import` — the critical data pipeline that imports a restaurant from Google Places API (New), fetches its photos, and saves everything to JSON data files.
 
 `priority`: **P0 — Critical Path** (nothing else works without restaurant data)
 
-`dependencies`: Phase 0 complete (Flask app running, Supabase connected, env vars set)
+`dependencies`: Phase 0 complete (Flask app running, data files exist, env vars set)
 
 `details`:
 The Google Places API (New) is different from the legacy API. Key details:
 - **Endpoint:** `GET https://places.googleapis.com/v1/places/{place_id}`
 - **Headers:** `X-Goog-Api-Key: {API_KEY}`, `X-Goog-FieldMask: displayName,formattedAddress,location,rating,photos,nationalPhoneNumber,websiteUri,types`
 - **Photo resolution:** Each photo in the response has a `name` field (e.g., `places/PLACE_ID/photos/PHOTO_REF`). Resolve to a URL via `https://places.googleapis.com/v1/{photo_name}/media?maxWidthPx=800&key={API_KEY}`. This returns a redirect — follow it or store the final URL.
-- **Save to Supabase:** Insert into `restaurants` table + insert each photo into `restaurant_images` with `source='google'`, `slot_type='personalized'`, and sequential `display_order`.
+- **Save to JSON:** Append to `restaurants.json` and `restaurant_images.json` via `data_store`. Each photo gets `source='google'`, `slot_type='personalized'`, and sequential `display_order`.
 
 `testStrategy`: `curl -X POST http://localhost:5000/api/restaurants/import -H "Content-Type: application/json" -d '{"place_id": "ChIJ..."}'` → should return the created restaurant JSON with images.
 
@@ -143,10 +102,10 @@ The Google Places API (New) is different from the legacy API. Key details:
 - [ ] 1.2 Call Google Places API (New) to fetch restaurant details (`displayName`, `formattedAddress`, `location`, `rating`, `types`, `nationalPhoneNumber`, `websiteUri`, `photos`)
 - [ ] 1.3 Parse the response and map to `restaurants` table fields (`types` → `cuisine_type`, `displayName.text` → `name`, `location.latitude` → `lat`, etc.)
 - [ ] 1.4 Resolve each photo reference to a usable image URL via the Places Photo Media endpoint
-- [ ] 1.5 Insert restaurant row into Supabase `restaurants` table (handle duplicate `google_place_id` gracefully — upsert or return existing)
-- [ ] 1.6 Insert all photo URLs into `restaurant_images` with `source='google'`, `slot_type='personalized'`, sequential `display_order`
+- [ ] 1.5 Append restaurant object to `restaurants.json` via `data_store.save_restaurants()` (handle duplicate `google_place_id` gracefully — upsert or return existing)
+- [ ] 1.6 Append image objects to `restaurant_images.json` with `source='google'`, `slot_type='personalized'`, sequential `display_order`
 - [ ] 1.7 Return the full restaurant object with its images array in the response
-- [ ] 1.8 Test with a real Google Place ID and verify data appears in Supabase
+- [ ] 1.8 Test with a real Google Place ID and verify data appears in JSON files and `GET /api/restaurants/<id>` returns it
 
 ### [ ] 2.0 Gemini Vision Image Tagging (Backend)
 
@@ -154,23 +113,23 @@ The Google Places API (New) is different from the legacy API. Key details:
 
 `priority`: **P0 — Critical Path** (tags drive the entire personalization engine)
 
-`dependencies`: Task 1.0 (need images in the database to tag)
+`dependencies`: Task 1.0 (need images in the data files to tag)
 
 `details`:
 - Use the `google-generativeai` Python SDK with model `gemini-2.0-flash`
 - Send the image URL directly (Gemini can fetch it)
 - Prompt: `"Analyze this restaurant photo. Return a JSON array of relevant tags from these categories: food items (e.g., 'steak', 'salad', 'cocktail', 'sushi'), dietary (e.g., 'vegan', 'vegetarian', 'gluten_free'), ambiance (e.g., 'outdoor', 'romantic', 'loud', 'bar'), cuisine (e.g., 'italian', 'mexican', 'japanese'). Return ONLY the JSON array, no markdown formatting."`
 - Parse the JSON array from the response (strip markdown code fences if present)
-- Update the `restaurant_images.tags` column in Supabase
+- Update the `tags` field in `restaurant_images.json` via `data_store`
 
-`testStrategy`: `curl -X POST http://localhost:5000/api/images/tag -H "Content-Type: application/json" -d '{"image_id": "uuid-here"}'` → should return `{"tags": ["steak", "romantic", "italian"]}` and update the DB row.
+`testStrategy`: `curl -X POST http://localhost:5000/api/images/tag -H "Content-Type: application/json" -d '{"image_id": "uuid-here"}'` → should return `{"tags": ["steak", "romantic", "italian"]}` and update `restaurant_images.json`.
 
 - [ ] 2.1 Add `google-generativeai` to `requirements.txt` if not already present
-- [ ] 2.2 Create `POST /api/images/tag` route — accepts `{"image_id": "..."}`, fetches the image URL from Supabase, sends to Gemini
+- [ ] 2.2 Create `POST /api/images/tag` route — accepts `{"image_id": "..."}`, fetches the image URL from `restaurant_images.json`, sends to Gemini
 - [ ] 2.3 Build the Gemini Vision prompt and parse the JSON array response (handle markdown code fences in response)
-- [ ] 2.4 Update the `restaurant_images.tags` field in Supabase with the parsed tags
+- [ ] 2.4 Update the `tags` field in `restaurant_images.json` via `data_store` with the parsed tags
 - [ ] 2.5 Create `POST /api/restaurants/<id>/images/tag-all` — batch endpoint that tags all untagged images for a restaurant (loop through images, call Gemini for each)
-- [ ] 2.6 Test with a real image URL and verify tags are reasonable and saved to DB
+- [ ] 2.6 Test with a real image URL and verify tags are reasonable and saved to `restaurant_images.json`
 
 ### [ ] 3.0 Restaurant CRUD Endpoints (Backend)
 
@@ -181,18 +140,18 @@ The Google Places API (New) is different from the legacy API. Key details:
 `dependencies`: Phase 0 complete
 
 `details`:
-- Keep it simple — direct Supabase queries, return JSON
-- `GET /api/restaurants/<id>` should include the restaurant's images in the response (join or separate query)
+- Keep it simple — read from JSON data files, return as API response
+- `GET /api/restaurants/<id>` should include the restaurant's images in the response (filter `restaurant_images.json` by `restaurant_id`)
 - Image update endpoint should allow changing `tags`, `slot_type`, and `display_order`
 - No auth needed for the hackathon
 
 `testStrategy`: Test each endpoint with `curl`. Verify response shape matches the TypeScript interfaces.
 
-- [ ] 3.1 `GET /api/restaurants` — query Supabase `restaurants` table, return JSON array
-- [ ] 3.2 `GET /api/restaurants/<id>` — query single restaurant + its images from `restaurant_images`, return combined JSON
-- [ ] 3.3 `PUT /api/restaurants/<id>/images/<image_id>` — accept JSON body with `tags`, `slot_type`, `display_order` (any subset), update in Supabase
-- [ ] 3.4 `DELETE /api/restaurants/<id>/images/<image_id>` — delete from Supabase, return 204
-- [ ] 3.5 `POST /api/restaurants/<id>/images` — accept `{"image_url": "...", "source": "owner_upload"}`, insert into `restaurant_images`, return created image
+- [ ] 3.1 `GET /api/restaurants` — read `restaurants.json` via `data_store`, return JSON array
+- [ ] 3.2 `GET /api/restaurants/<id>` — read single restaurant + its images from `restaurant_images.json`, return combined JSON
+- [ ] 3.3 `PUT /api/restaurants/<id>/images/<image_id>` — accept JSON body with `tags`, `slot_type`, `display_order` (any subset), update in `restaurant_images.json` via `data_store`
+- [ ] 3.4 `DELETE /api/restaurants/<id>/images/<image_id>` — remove from `restaurant_images.json`, return 204
+- [ ] 3.5 `POST /api/restaurants/<id>/images` — accept `{"image_url": "...", "source": "owner_upload"}`, append to `restaurant_images.json`, return created image
 - [ ] 3.6 Verify all endpoints return data matching the TypeScript `Restaurant` and `RestaurantImage` interfaces
 
 ### [ ] 4.0 Story Template Endpoints (Backend)
@@ -226,7 +185,7 @@ The Google Places API (New) is different from the legacy API. Key details:
 
 `details`:
 - This page does NOT need to be pretty. Functional and clear is the goal.
-- Use the Supabase JS client or fetch from the Flask API (either works, but prefer the Flask API for consistency)
+- Fetch from the Flask API
 - Layout suggestion: restaurant info header → image grid → story template builder (bottom)
 - Each image card: thumbnail, tag pills, slot dropdown (intro/personalized/outro), delete button
 - Buttons: "Import from Google" (calls POST /api/restaurants/import), "Auto-Tag All" (calls POST /api/restaurants/<id>/images/tag-all), "Add Image" (paste URL form)
@@ -276,17 +235,17 @@ The Google Places API (New) is different from the legacy API. Key details:
 
 `priority`: **P1 — High** (Dev B needs this, but it's a simple endpoint)
 
-`dependencies`: Phase 0 complete (personas seeded in Supabase)
+`dependencies`: Phase 0 complete (personas in `user_profiles.json`)
 
 `details`:
-- Simple query: `SELECT * FROM user_profiles`
+- Read from `user_profiles.json` via `data_store.load_user_profiles()`
 - Return as JSON array
 - Should return the 3 seeded personas: vegan, carnivore, cocktail_lover
 
 `testStrategy`: `curl http://localhost:5000/api/user-profiles` → should return JSON array with 3 profiles matching the `UserProfile` interface.
 
 - [ ] 7.1 Create `GET /api/user-profiles` route
-- [ ] 7.2 Query Supabase `user_profiles` table, return all rows as JSON
+- [ ] 7.2 Read `user_profiles.json` via `data_store`, return all entries as JSON
 - [ ] 7.3 Verify response shape matches the TypeScript `UserProfile` interface
 
 ---

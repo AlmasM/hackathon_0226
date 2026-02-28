@@ -6,7 +6,7 @@
 
 **Why this matters:** Restaurant discovery platforms show generic content — a vegan sees steaks, a cocktail lover sees kids' menus. By dynamically personalizing the visual story per user, we increase engagement and conversion. This PoC proves the concept for pitching to Google Maps, Yelp, or OpenTable as a native integration.
 
-**Why Phase 0 matters:** This phase builds the shared foundation that both devs depend on. If the schema is wrong, API contracts are misaligned, or env vars are missing — all parallel work in Phase 1A and 1B will stall. Both devs work together for 30 minutes to get this right, then split.
+**Why Phase 0 matters:** This phase builds the shared foundation that both devs depend on. If the data files are wrong, API contracts are misaligned, or env vars are missing — all parallel work in Phase 1A and 1B will stall. Both devs work together for 30 minutes to get this right, then split.
 
 ## Current State of Architecture
 
@@ -19,7 +19,7 @@
 
 **What's MISSING (this phase delivers it all):**
 - No React Router (no page routing)
-- No Supabase (no database, no client)
+- No data files (no seed data)
 - No Google Maps SDK
 - No environment variables configured
 - No shared TypeScript types
@@ -29,35 +29,36 @@
 
 ## Key Dependencies & Setup Gotchas
 
-1. **Supabase RLS (Row Level Security):** Supabase enables RLS by default on new tables. For this PoC, **disable RLS** on all tables or create permissive policies. If you skip this, all frontend Supabase queries will return empty arrays with no error — very confusing to debug.
-2. **Google Cloud Console API Enablement:** The Google Maps API key must have these APIs enabled: **Maps JavaScript API**, **Places API (New)**, and **Generative Language API** (for Gemini). A single key can cover all three, but each must be explicitly enabled.
-3. **Vite env vars:** Vite only exposes env vars prefixed with `VITE_`. Backend vars (no prefix) won't be available in the frontend.
-4. **CORS:** The Vite dev server runs on `localhost:5173`, the Flask dev server on `localhost:8000`. Without CORS configuration, frontend-to-backend API calls will fail silently.
-5. **Python virtual environment:** The backend uses a venv at `apps/backend/.venv/`. Run `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt` to set up.
-6. **Google Places photo URLs:** These are not direct image URLs — they require API key authentication. Plan for this in the schema (store the photo reference, resolve to URL on demand).
+1. **Google Cloud Console API Enablement:** The Google Maps API key must have these APIs enabled: **Maps JavaScript API**, **Places API (New)**, and **Generative Language API** (for Gemini). A single key can cover all three, but each must be explicitly enabled.
+2. **Vite env vars:** Vite only exposes env vars prefixed with `VITE_`. Backend vars (no prefix) won't be available in the frontend.
+3. **CORS:** The Vite dev server runs on `localhost:5173`, the Flask dev server on `localhost:8000`. Without CORS configuration, frontend-to-backend API calls will fail silently.
+4. **Python virtual environment:** The backend uses a venv at `apps/backend/.venv/`. Run `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt` to set up.
+5. **Google Places photo URLs:** These are not direct image URLs — they require API key authentication. Plan for this in the data model (store the photo reference, resolve to URL on demand).
 
 ## Relevant Files
 
-- `apps/frontend/package.json` — Add React Router, Supabase JS client, Google Maps package
+- `apps/frontend/package.json` — Add React Router, Google Maps package
 - `apps/frontend/src/App.tsx` — Set up React Router and layout shell
 - `apps/frontend/src/main.tsx` — Entry point (already renders `<App />`)
 - `apps/frontend/src/types/index.ts` — **New file**: Shared TypeScript interfaces
-- `apps/frontend/src/lib/supabase.ts` — **New file**: Supabase client initialization
 - `apps/frontend/.env` — **New file**: Frontend environment variables
 - `apps/frontend/.env.example` — **New file**: Template for frontend env vars
 - `apps/backend/requirements.txt` — Add Python dependencies
 - `apps/backend/api/index.py` — Add CORS, import route blueprints
+- `apps/backend/api/data_store.py` — **New file**: JSON data layer module
+- `apps/backend/data/restaurants.json` — **New file**: Seed restaurant data
+- `apps/backend/data/restaurant_images.json` — **New file**: Seed image data
+- `apps/backend/data/story_templates.json` — **New file**: Story template data
+- `apps/backend/data/user_profiles.json` — **New file**: User persona data
 - `apps/backend/.env` — **New file**: Backend environment variables
 - `apps/backend/.env.example` — **New file**: Template for backend env vars
 - `.gitignore` — Add `.env` files
-- `scripts/schema.json` — **New file**: Canonical JSON schema (single source of truth for tables; no live Supabase implementation)
-- `scripts/seed.json` — **New file**: Seed data (3 personas, 5 restaurants) in JSON; use when populating Supabase
 
 ### Notes
 
 - Both devs should be on a call or side-by-side during Phase 0 — decisions here affect everything downstream.
-- Split the work: one dev handles frontend setup (Tasks 1, 5, 8), the other handles backend + Supabase (Tasks 2, 3, 4, 7). Task 6 is done together.
-- Verify the foundation works before splitting: both devs should confirm they can query Supabase from both frontend and backend.
+- Split the work: one dev handles frontend setup (Tasks 1, 5, 8), the other handles backend + JSON data files (Tasks 2, 3, 4, 7). Task 6 is done together.
+- Verify the foundation works before splitting: both devs should confirm they can fetch data from the backend API.
 
 ---
 
@@ -72,12 +73,12 @@
 `dependencies`: None
 
 `details`:
-The frontend currently has only `react`, `react-dom`, `@vitejs/plugin-react`, `typescript`, and `vite`. We need routing, database access, Google Maps rendering, and optionally the Gemini JS client. Install all at once to avoid repeated `npm install` cycles.
+The frontend currently has only `react`, `react-dom`, `@vitejs/plugin-react`, `typescript`, and `vite`. We need routing and Google Maps rendering. Install all at once to avoid repeated `npm install` cycles.
 
 `testStrategy`: Run `npm run dev:frontend` from the repo root. App should start without errors. Import each package in a test file to confirm resolution.
 
-- [ ] 1.1 From the repo root, run: `npm install react-router-dom @supabase/supabase-js @vis.gl/react-google-maps --workspace @hackathon/frontend`
-  - **Done when:** `package.json` in `apps/frontend/` lists all three as dependencies and `node_modules` contains them.
+- [ ] 1.1 From the repo root, run: `npm install react-router-dom @vis.gl/react-google-maps --workspace @hackathon/frontend`
+  - **Done when:** `package.json` in `apps/frontend/` lists both as dependencies and `node_modules` contains them.
 - [ ] 1.2 Optionally install `@google/generative-ai` if Gemini will be called from the frontend: `npm install @google/generative-ai --workspace @hackathon/frontend`
   - **Done when:** Package resolves in imports. Skip if all Gemini calls go through the backend.
 - [ ] 1.3 Verify the dev server still starts: `npm run dev:frontend` — should compile without errors.
@@ -94,15 +95,14 @@ The frontend currently has only `react`, `react-dom`, `@vitejs/plugin-react`, `t
 `dependencies`: None
 
 `details`:
-The backend `requirements.txt` is currently empty (just a comment). We need the Supabase Python client, Google Generative AI SDK, HTTP request library, env var management, and CORS support. The venv may need to be recreated.
+The backend `requirements.txt` is currently empty (just a comment). We need the Google Generative AI SDK, HTTP request library, env var management, and CORS support. The venv may need to be recreated.
 
-`testStrategy`: Activate the venv, run `python -c "import supabase; import google.generativeai; import flask_cors; print('OK')"`. All imports should succeed.
+`testStrategy`: Activate the venv, run `python -c "import google.generativeai; import flask_cors; print('OK')"`. All imports should succeed.
 
 - [ ] 2.1 Update `apps/backend/requirements.txt` with:
   ```
   flask
   flask-cors
-  supabase
   google-generativeai
   requests
   python-dotenv
@@ -111,7 +111,7 @@ The backend `requirements.txt` is currently empty (just a comment). We need the 
 - [ ] 2.2 Set up the virtual environment and install: `cd apps/backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
   - **Done when:** All packages install without errors.
   - **GOTCHA:** If you get `error: externally-managed-environment`, you MUST use the venv. Don't use `--break-system-packages`.
-- [ ] 2.3 Verify imports work: `.venv/bin/python -c "import supabase; import google.generativeai; import flask_cors; print('All imports OK')"`
+- [ ] 2.3 Verify imports work: `.venv/bin/python -c "import google.generativeai; import flask_cors; print('All imports OK')"`
   - **Done when:** Prints "All imports OK" with no errors.
 - [ ] 2.4 Add CORS to Flask app in `apps/backend/api/index.py`:
   ```python
@@ -122,134 +122,168 @@ The backend `requirements.txt` is currently empty (just a comment). We need the 
 
 ---
 
-### [ ] 3.0 Define Schema (JSON Only — No Supabase Implementation)
+### [ ] 3.0 Create JSON Data Files
 
-`description`: Define the shared data contract as a canonical JSON schema. No live Supabase project or table creation is part of this phase; only the schema is implemented.
+`description`: Create the seed data files in `apps/backend/data/` that serve as the application's data layer. No database — the backend reads and writes these JSON files directly.
 
-`priority`: P0 — Critical (schema is the contract for all data)
+`priority`: P0 — Critical (data files are the foundation for all data)
 
 `dependencies`: None (can be done in parallel with Tasks 1.0 and 2.0)
 
 `details`:
-Use a **JSON schema only** as the source of truth. Create `scripts/schema.json` with the 4 table definitions. TypeScript types and any future SQL DDL should be derived from this file. Supabase project creation, table creation in the dashboard, and RLS configuration are **out of scope** — do them manually when connecting Supabase.
+Create the `apps/backend/data/` directory and populate it with 4 JSON files. These files ARE the data layer. The backend will read from them to serve API responses and write to them when data is updated.
 
-`testStrategy`: `scripts/schema.json` exists and defines all 4 tables with correct column types. No Supabase dashboard or API calls required.
+`testStrategy`: All 4 JSON files exist in `apps/backend/data/`, are valid JSON, and contain the correct seed data.
 
-- [ ] 3.1 **Skipped for implementation.** Create a Supabase project only when you connect Supabase later. Note the Project URL and anon key then.
-- [ ] 3.2 Define all 4 tables in **`scripts/schema.json`** using the following JSON schema definitions (single source of truth):
-
-  **`restaurants`** — Restaurants pulled from Google Places
+- [ ] 3.1 Create the `apps/backend/data/` directory.
+  - **Done when:** Directory exists.
+- [ ] 3.2 Create `apps/backend/data/restaurants.json` with 5 seed restaurants:
   ```json
-  {
-    "table": "restaurants",
-    "columns": {
-      "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
-      "google_place_id":  { "type": "text", "unique": true, "required": true },
-      "name":             { "type": "text", "required": true },
-      "address":          { "type": "text" },
-      "lat":              { "type": "float" },
-      "lng":              { "type": "float" },
-      "rating":           { "type": "float" },
-      "cuisine_type":     { "type": "text[]" },
-      "phone":            { "type": "text" },
-      "website":          { "type": "text" },
-      "created_at":       { "type": "timestamptz", "default": "now()" }
+  [
+    {
+      "id": "r1",
+      "google_place_id": "ChIJAQBEylJYwokRlNgMJJHxNiA",
+      "name": "Le Bernardin",
+      "address": "155 W 51st St, New York, NY",
+      "lat": 40.7618,
+      "lng": -73.9818,
+      "rating": 4.7,
+      "cuisine_type": ["french", "seafood", "fine_dining"],
+      "phone": null,
+      "website": null
+    },
+    {
+      "id": "r2",
+      "google_place_id": "ChIJ4WAmhqJZwokRIPEYdG2QROI",
+      "name": "Peter Luger Steak House",
+      "address": "178 Broadway, Brooklyn, NY",
+      "lat": 40.7099,
+      "lng": -73.9624,
+      "rating": 4.4,
+      "cuisine_type": ["steakhouse", "american", "classic"],
+      "phone": null,
+      "website": null
+    },
+    {
+      "id": "r3",
+      "google_place_id": "ChIJhUBe4WBZwokRnLGNGx5paQQ",
+      "name": "Death & Co",
+      "address": "433 E 6th St, New York, NY",
+      "lat": 40.7265,
+      "lng": -73.9878,
+      "rating": 4.5,
+      "cuisine_type": ["cocktail_bar", "speakeasy", "drinks"],
+      "phone": null,
+      "website": null
+    },
+    {
+      "id": "r4",
+      "google_place_id": "ChIJi3MwDPRYwokR7L20FGbVECU",
+      "name": "By Chloe",
+      "address": "185 Bleecker St, New York, NY",
+      "lat": 40.7293,
+      "lng": -73.9997,
+      "rating": 4.3,
+      "cuisine_type": ["vegan", "fast_casual", "healthy"],
+      "phone": null,
+      "website": null
+    },
+    {
+      "id": "r5",
+      "google_place_id": "ChIJK1Gm8RpZwokRn2p5Z3PjfVo",
+      "name": "Gramercy Tavern",
+      "address": "42 E 20th St, New York, NY",
+      "lat": 40.7386,
+      "lng": -73.9884,
+      "rating": 4.6,
+      "cuisine_type": ["american", "new_american", "fine_dining"],
+      "phone": null,
+      "website": null
     }
-  }
+  ]
   ```
-
-  **`restaurant_images`** — Images for each restaurant
+  - **Done when:** File exists with 5 restaurant objects, each with an `id` field.
+  - **NOTE:** These Place IDs are approximate. If the Google Places import in Phase 1A fails with "Place not found," you may need to look up the correct Place IDs via the [Place ID Finder](https://developers.google.com/maps/documentation/places/web-service/place-id).
+- [ ] 3.3 Create `apps/backend/data/restaurant_images.json` with an empty array:
   ```json
-  {
-    "table": "restaurant_images",
-    "columns": {
-      "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
-      "restaurant_id":    { "type": "uuid", "foreignKey": { "table": "restaurants", "column": "id", "onDelete": "cascade" }, "required": true },
-      "image_url":        { "type": "text", "required": true },
-      "source":           { "type": "text", "default": "google", "enum": ["google", "owner_upload"] },
-      "tags":             { "type": "text[]", "description": "AI-generated tags, e.g. ['vegan', 'cocktail', 'steak']" },
-      "slot_type":        { "type": "text", "default": "personalized", "enum": ["intro", "personalized", "outro"] },
-      "display_order":    { "type": "int" },
-      "created_at":       { "type": "timestamptz", "default": "now()" }
-    }
-  }
+  []
   ```
-
-  **`story_templates`** — Story templates defined by owners
+  - **Done when:** File exists. Images will be populated by the Google Places import in Phase 1A.
+- [ ] 3.4 Create `apps/backend/data/story_templates.json` with an empty array:
   ```json
-  {
-    "table": "story_templates",
-    "columns": {
-      "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
-      "restaurant_id":    { "type": "uuid", "foreignKey": { "table": "restaurants", "column": "id", "onDelete": "cascade" }, "required": true },
-      "intro_image_id":   { "type": "uuid", "foreignKey": { "table": "restaurant_images", "column": "id" } },
-      "outro_image_id":   { "type": "uuid", "foreignKey": { "table": "restaurant_images", "column": "id" } },
-      "cta_text":         { "type": "text", "default": "Book a Table" },
-      "cta_url":          { "type": "text" },
-      "created_at":       { "type": "timestamptz", "default": "now()" }
-    }
-  }
+  []
   ```
-
-  **`user_profiles`** — Simulated user profiles
+  - **Done when:** File exists. Templates will be created later.
+- [ ] 3.5 Create `apps/backend/data/user_profiles.json` with 3 seed personas:
   ```json
-  {
-    "table": "user_profiles",
-    "columns": {
-      "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
-      "name":             { "type": "text", "required": true },
-      "avatar_url":       { "type": "text" },
-      "persona_type":     { "type": "text", "required": true, "enum": ["vegan", "carnivore", "cocktail_lover"] },
-      "preferences":      { "type": "jsonb", "required": true, "schema": { "tags": "string[]", "avoid_tags": "string[]" } },
-      "created_at":       { "type": "timestamptz", "default": "now()" }
+  [
+    {
+      "id": "up1",
+      "name": "The Vegan",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=vegan",
+      "persona_type": "vegan",
+      "preferences": {
+        "tags": ["vegan", "vegetarian", "salad", "organic", "plant_based", "smoothie", "avocado", "tofu", "garden", "healthy"],
+        "avoid_tags": ["steak", "meat", "burger", "bbq", "bacon", "ribeye", "pork", "chicken_wings"]
+      }
+    },
+    {
+      "id": "up2",
+      "name": "The Carnivore",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=carnivore",
+      "persona_type": "carnivore",
+      "preferences": {
+        "tags": ["steak", "burger", "bbq", "meat", "ribeye", "smoked", "grill", "bacon", "wings", "prime_rib"],
+        "avoid_tags": ["tofu", "vegan", "plant_based"]
+      }
+    },
+    {
+      "id": "up3",
+      "name": "The Cocktail Lover",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=cocktail",
+      "persona_type": "cocktail_lover",
+      "preferences": {
+        "tags": ["cocktail", "bar", "wine", "craft_beer", "mixology", "happy_hour", "drinks", "martini", "speakeasy", "rooftop"],
+        "avoid_tags": []
+      }
     }
-  }
+  ]
   ```
-  - **Done when:** `scripts/schema.json` exists with all 4 tables and columns as above. No Supabase Table Editor usage.
-- [ ] 3.3 **Out of scope (Supabase implementation).** When you connect Supabase later, disable RLS on all 4 tables (dashboard or run the `ALTER TABLE ... DISABLE ROW LEVEL SECURITY` SQL).
-- [ ] 3.4 **Out of scope (Supabase implementation).** When you connect Supabase, note the service_role key for the backend; never expose it in frontend code.
+  - **Done when:** File exists with 3 user profile objects, each with an `id` field and distinct preferences.
 
 ---
 
 ### [ ] 4.0 Configure Environment Variables
 
-`description`: Set up `.env` files for both frontend and backend with all API keys and database credentials. Create `.env.example` templates for the team.
+`description`: Set up `.env` files for both frontend and backend with all API keys. Create `.env.example` templates for the team.
 
 `priority`: P0 — Critical (nothing connects without credentials)
 
-`dependencies`: Task 3.0 (need Supabase URL and keys)
+`dependencies`: None
 
 `details`:
 Vite requires `VITE_` prefix for frontend env vars. Backend uses `python-dotenv` to load from `.env`. Never commit `.env` files — only `.env.example` with placeholder values.
 
-`testStrategy`: Frontend: `console.log(import.meta.env.VITE_SUPABASE_URL)` shows the URL. Backend: `os.getenv('SUPABASE_URL')` returns the URL.
+`testStrategy`: Frontend: `console.log(import.meta.env.VITE_GOOGLE_MAPS_API_KEY)` shows the key. Backend: `os.getenv('GEMINI_API_KEY')` returns the key.
 
 - [ ] 4.1 Create `apps/frontend/.env`:
   ```
-  VITE_SUPABASE_URL=https://your-project.supabase.co
-  VITE_SUPABASE_ANON_KEY=your-anon-key
   VITE_GOOGLE_MAPS_API_KEY=your-google-maps-key
   ```
   - **Done when:** File exists with real values (not placeholders).
 - [ ] 4.2 Create `apps/frontend/.env.example`:
   ```
-  VITE_SUPABASE_URL=https://your-project.supabase.co
-  VITE_SUPABASE_ANON_KEY=your-anon-key-here
   VITE_GOOGLE_MAPS_API_KEY=your-google-maps-key-here
   ```
   - **Done when:** File exists with placeholder values.
 - [ ] 4.3 Create `apps/backend/.env`:
   ```
-  SUPABASE_URL=https://your-project.supabase.co
-  SUPABASE_SERVICE_KEY=your-service-role-key
   GOOGLE_PLACES_API_KEY=your-google-api-key
   GEMINI_API_KEY=your-gemini-api-key
   ```
   - **Done when:** File exists with real values.
 - [ ] 4.4 Create `apps/backend/.env.example`:
   ```
-  SUPABASE_URL=https://your-project.supabase.co
-  SUPABASE_SERVICE_KEY=your-service-role-key-here
   GOOGLE_PLACES_API_KEY=your-google-api-key-here
   GEMINI_API_KEY=your-gemini-api-key-here
   ```
@@ -265,7 +299,7 @@ Vite requires `VITE_` prefix for frontend env vars. Backend uses `python-dotenv`
   from dotenv import load_dotenv
   load_dotenv()
   ```
-  - **Done when:** `os.getenv('SUPABASE_URL')` returns the correct value in backend code.
+  - **Done when:** `os.getenv('GEMINI_API_KEY')` returns the correct value in backend code.
 
 ---
 
@@ -312,155 +346,105 @@ Create placeholder page components that both devs will flesh out. Wrap the app w
   }
   ```
   - **Done when:** All 3 routes render their placeholder pages when navigated to in the browser.
-- [ ] 5.3 Create the Supabase client singleton at `apps/frontend/src/lib/supabase.ts`:
-  ```tsx
-  import { createClient } from '@supabase/supabase-js';
-
-  export const supabase = createClient(
-    import.meta.env.VITE_SUPABASE_URL,
-    import.meta.env.VITE_SUPABASE_ANON_KEY
-  );
-  ```
-  - **Done when:** Importing `supabase` from this file works in any component.
-- [ ] 5.4 Verify Supabase connection from the frontend: in `DiscoveryPage`, add a `useEffect` that runs `supabase.from('restaurants').select('*')` and logs the result. If RLS is disabled and env vars are correct, it should return an empty array (no data yet) — NOT an error.
-  - **Done when:** Console shows `{ data: [], error: null }`.
-  - **GOTCHA:** If you see `{ data: null, error: { message: "..." } }`, check your Supabase URL/key. If you see `{ data: [], error: null }` but expected data, it's correct — you haven't seeded yet.
 
 ---
 
-### [ ] 6.0 Set Up Backend Supabase Client & API Structure
+### [ ] 6.0 Set Up Backend JSON Data Layer
 
-`description`: Initialize the Supabase Python client in the backend and scaffold the API route structure for Dev A to build on in Phase 1A.
+`description`: Create a Python module that reads and writes the JSON data files, and scaffold the Flask route structure for Dev A to build on in Phase 1A.
 
 `priority`: P0 — Critical (Dev A needs this to build endpoints)
 
-`dependencies`: Tasks 2.0 (dependencies installed), 4.0 (env vars configured)
+`dependencies`: Tasks 2.0 (dependencies installed), 3.0 (JSON data files created), 4.0 (env vars configured)
 
 `details`:
-Create a Supabase client helper and scaffold the Flask route structure. The backend needs to read from and write to Supabase for all API operations.
+Create a data store module that provides simple functions to load and save each JSON data file. The backend reads from and writes to these files for all API operations.
 
-`testStrategy`: Run the backend dev server and call `GET /api/health`. Then add a test route that queries Supabase and verify it returns data.
+`testStrategy`: Run the backend dev server and call `GET /api/health`. Then call the test route to verify data loads from JSON files.
 
-- [ ] 6.1 Create `apps/backend/api/supabase_client.py`:
+- [ ] 6.1 Create `apps/backend/api/data_store.py`:
   ```python
+  import json
   import os
-  from supabase import create_client
 
-  def get_supabase():
-      url = os.getenv('SUPABASE_URL')
-      key = os.getenv('SUPABASE_SERVICE_KEY')
-      return create_client(url, key)
+  DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
+
+  def _load(filename):
+      filepath = os.path.join(DATA_DIR, filename)
+      with open(filepath, 'r') as f:
+          return json.load(f)
+
+  def _save(filename, data):
+      filepath = os.path.join(DATA_DIR, filename)
+      with open(filepath, 'w') as f:
+          json.dump(data, f, indent=2)
+
+  def load_restaurants():
+      return _load('restaurants.json')
+
+  def save_restaurants(data):
+      _save('restaurants.json', data)
+
+  def load_images():
+      return _load('restaurant_images.json')
+
+  def save_images(data):
+      _save('restaurant_images.json', data)
+
+  def load_templates():
+      return _load('story_templates.json')
+
+  def save_templates(data):
+      _save('story_templates.json', data)
+
+  def load_user_profiles():
+      return _load('user_profiles.json')
   ```
-  - **Done when:** Importing `get_supabase` works and returns a client that can query tables.
-- [ ] 6.2 Add a test route in `apps/backend/api/index.py` to verify Supabase connectivity:
+  - **Done when:** Importing `load_restaurants` works and returns a list of 5 restaurant dicts.
+- [ ] 6.2 Add a test route in `apps/backend/api/index.py` to verify the data layer:
   ```python
-  @app.get("/api/test-db")
-  def test_db():
-      sb = get_supabase()
-      result = sb.table('restaurants').select('*').execute()
-      return {"count": len(result.data), "data": result.data}, 200
+  from api.data_store import load_restaurants
+
+  @app.get("/api/test-data")
+  def test_data():
+      restaurants = load_restaurants()
+      return {"count": len(restaurants), "data": restaurants}, 200
   ```
-  - **Done when:** `curl http://localhost:8000/api/test-db` returns `{"count": 0, "data": []}`.
-  - **GOTCHA:** The Supabase Python client uses `service_role` key, which bypasses RLS. If you get auth errors, check the key is the service role key, not the anon key.
-- [ ] 6.3 Remove the test route after verification (it was just for confirming the connection).
+  - **Done when:** `curl http://localhost:8000/api/test-data` returns `{"count": 5, "data": [...]}`.
+- [ ] 6.3 Remove the test route after verification (it was just for confirming the data layer works).
 
 ---
 
-### [ ] 7.0 Seed Initial Data
+### [ ] 7.0 Verify Seed Data
 
-`description`: Populate Supabase with 3 user personas and 5 mock restaurants so both devs have real data to work with in Phase 1.
+`description`: Verify that the JSON data files created in Task 3.0 contain the correct seed data and are accessible via the backend API.
 
 `priority`: P0 — Critical (no data = nothing to display or test)
 
-`dependencies`: Task 3.0 (tables must exist)
+`dependencies`: Tasks 3.0 (JSON data files must exist), 6.0 (data layer must be set up)
 
 `details`:
-Seed 3 user personas with distinct preference profiles and 5 restaurants with real Google Place IDs from a major city (e.g., NYC or SF). Use real Place IDs so the Google Places import will work in Phase 1A. Restaurants should cover diverse cuisines to make the personalization demo impactful.
+The seed data IS the JSON files from Task 3.0. This task simply verifies the files exist, contain the right data, and are correctly served by the backend.
 
-`testStrategy`: Query each table in the Supabase dashboard. `user_profiles` should have 3 rows. `restaurants` should have 5 rows. Each persona's preferences should have distinct `tags` and `avoid_tags`.
+`testStrategy`: Call the backend API and confirm the correct data is returned.
 
-- [ ] 7.1 Seed user personas. Insert the following JSON objects into the `user_profiles` table via the Supabase Table Editor (Insert Row) or a seed script:
-  ```json
-  [
-    {
-      "name": "The Vegan",
-      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=vegan",
-      "persona_type": "vegan",
-      "preferences": {
-        "tags": ["vegan", "vegetarian", "salad", "organic", "plant_based", "smoothie", "avocado", "tofu", "garden", "healthy"],
-        "avoid_tags": ["steak", "meat", "burger", "bbq", "bacon", "ribeye", "pork", "chicken_wings"]
-      }
-    },
-    {
-      "name": "The Carnivore",
-      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=carnivore",
-      "persona_type": "carnivore",
-      "preferences": {
-        "tags": ["steak", "burger", "bbq", "meat", "ribeye", "smoked", "grill", "bacon", "wings", "prime_rib"],
-        "avoid_tags": ["tofu", "vegan", "plant_based"]
-      }
-    },
-    {
-      "name": "The Cocktail Lover",
-      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=cocktail",
-      "persona_type": "cocktail_lover",
-      "preferences": {
-        "tags": ["cocktail", "bar", "wine", "craft_beer", "mixology", "happy_hour", "drinks", "martini", "speakeasy", "rooftop"],
-        "avoid_tags": []
-      }
-    }
-  ]
+- [ ] 7.1 Add API endpoints to serve the data:
+  ```python
+  from api.data_store import load_restaurants, load_user_profiles
+
+  @app.get("/api/restaurants")
+  def get_restaurants():
+      return {"data": load_restaurants()}, 200
+
+  @app.get("/api/user-profiles")
+  def get_user_profiles():
+      return {"data": load_user_profiles()}, 200
   ```
-  - **Done when:** Querying `user_profiles` returns 3 rows with distinct preferences.
-- [ ] 7.2 Seed 5 mock restaurants. Insert the following JSON objects into the `restaurants` table. Use real Google Place IDs from NYC (these will be used with the Google Places import in Phase 1A):
-  ```json
-  [
-    {
-      "google_place_id": "ChIJAQBEylJYwokRlNgMJJHxNiA",
-      "name": "Le Bernardin",
-      "address": "155 W 51st St, New York, NY",
-      "lat": 40.7618, "lng": -73.9818,
-      "rating": 4.7,
-      "cuisine_type": ["french", "seafood", "fine_dining"]
-    },
-    {
-      "google_place_id": "ChIJ4WAmhqJZwokRIPEYdG2QROI",
-      "name": "Peter Luger Steak House",
-      "address": "178 Broadway, Brooklyn, NY",
-      "lat": 40.7099, "lng": -73.9624,
-      "rating": 4.4,
-      "cuisine_type": ["steakhouse", "american", "classic"]
-    },
-    {
-      "google_place_id": "ChIJhUBe4WBZwokRnLGNGx5paQQ",
-      "name": "Death & Co",
-      "address": "433 E 6th St, New York, NY",
-      "lat": 40.7265, "lng": -73.9878,
-      "rating": 4.5,
-      "cuisine_type": ["cocktail_bar", "speakeasy", "drinks"]
-    },
-    {
-      "google_place_id": "ChIJi3MwDPRYwokR7L20FGbVECU",
-      "name": "By Chloe",
-      "address": "185 Bleecker St, New York, NY",
-      "lat": 40.7293, "lng": -73.9997,
-      "rating": 4.3,
-      "cuisine_type": ["vegan", "fast_casual", "healthy"]
-    },
-    {
-      "google_place_id": "ChIJK1Gm8RpZwokRn2p5Z3PjfVo",
-      "name": "Gramercy Tavern",
-      "address": "42 E 20th St, New York, NY",
-      "lat": 40.7386, "lng": -73.9884,
-      "rating": 4.6,
-      "cuisine_type": ["american", "new_american", "fine_dining"]
-    }
-  ]
-  ```
-  - **Done when:** Querying `restaurants` returns 5 rows covering diverse cuisines.
-  - **NOTE:** These Place IDs are approximate. If the Google Places import in Phase 1A fails with "Place not found," you may need to look up the correct Place IDs via the [Place ID Finder](https://developers.google.com/maps/documentation/places/web-service/place-id).
-- [ ] 7.3 Verify seed data from the frontend: in the `DiscoveryPage` `useEffect`, the Supabase query should now return 5 restaurants and the `user_profiles` query should return 3 personas. Log both to console and confirm.
-  - **Done when:** Console shows 5 restaurant objects and 3 user profile objects.
+  - **Done when:** Endpoints exist and return data.
+- [ ] 7.2 Verify restaurants: `curl http://localhost:8000/api/restaurants` — should return 5 restaurant objects covering diverse cuisines (french, steakhouse, cocktail bar, vegan, american).
+  - **Done when:** Response contains 5 restaurant objects with correct fields.
+- [ ] 7.3 Verify user profiles: `curl http://localhost:8000/api/user-profiles` — should return 3 persona objects with distinct preferences.
+  - **Done when:** Response contains 3 user profile objects. Each persona's preferences have distinct `tags` and `avoid_tags`.
 
 ---
 
@@ -470,10 +454,10 @@ Seed 3 user personas with distinct preference profiles and 5 restaurants with re
 
 `priority`: P0 — Critical (type mismatches cause integration failures)
 
-`dependencies`: Task 3.0 (schema must be finalized)
+`dependencies`: Task 3.0 (data shape must be finalized)
 
 `details`:
-These types mirror the Supabase schema exactly. Both devs import from this file. Any schema change must be reflected here. Also define the `CompiledStory` and `StorySegment` types that the story player and personalization engine use.
+These types define the shape of the JSON data files. Both devs import from this file. Any data shape change must be reflected here. Also define the `CompiledStory` and `StorySegment` types that the story player and personalization engine use.
 
 `testStrategy`: Both devs import the types in their components. TypeScript compilation succeeds without errors.
 
@@ -556,21 +540,21 @@ These types mirror the Supabase schema exactly. Both devs import from this file.
 |-----|------|------|---------------|
 | **Dev A** | 0:00–0:05 | **2.0** Backend dependencies | Unblocks all backend work |
 | **Dev B** | 0:00–0:05 | **1.0** Frontend dependencies | Unblocks all frontend work |
-| **Dev A** | 0:05–0:15 | **3.0** Supabase schema | Tables must exist before anything else |
+| **Dev A** | 0:05–0:15 | **3.0** JSON data files | Data must exist before anything else |
 | **Dev B** | 0:05–0:15 | **5.0** Frontend routing + layout | Routes must exist for page dev |
 | **Dev A** | 0:15–0:20 | **4.0** Environment variables | Both sides need credentials |
 | **Dev B** | 0:15–0:20 | **8.0** Shared TypeScript types | Contract for all frontend code |
-| **Dev A** | 0:20–0:25 | **6.0** Backend Supabase client | Dev A needs this for Phase 1A |
-| **Dev A** | 0:25–0:30 | **7.0** Seed data | Both devs need data to test against |
-| **Both** | 0:25–0:30 | **Verify** | Both query Supabase from frontend + backend, confirm data flows |
+| **Dev A** | 0:20–0:25 | **6.0** Backend data layer | Dev A needs this for Phase 1A |
+| **Dev A** | 0:25–0:30 | **7.0** Verify seed data | Both devs need data to test against |
+| **Both** | 0:25–0:30 | **Verify** | Both fetch data from backend API, confirm data flows |
 
 ## Definition of Done (Phase 0)
 
 - [ ] Frontend starts with `npm run dev:frontend` — shows routes at `/`, `/restaurant/:id`, `/owner/:restaurantId`
 - [ ] Backend starts with `.venv/bin/python dev_server.py` — responds at `localhost:8000/api/health`
-- [ ] Supabase has 4 tables with correct schema and RLS disabled
-- [ ] Frontend can query Supabase and get 5 restaurants + 3 user personas
-- [ ] Backend can query Supabase and get 5 restaurants + 3 user personas
+- [ ] JSON data files exist in `apps/backend/data/` with seed data (5 restaurants, 3 user profiles)
+- [ ] Backend can read and return data from JSON files via API endpoints
+- [ ] Frontend can fetch from backend API (`/api/restaurants`, `/api/user-profiles`) and receive data
 - [ ] All env vars are configured and loaded in both frontend and backend
 - [ ] Shared TypeScript types compile without errors
 - [ ] Both devs confirm they can independently work on their Phase 1 tasks

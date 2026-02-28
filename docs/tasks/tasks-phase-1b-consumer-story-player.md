@@ -8,22 +8,21 @@ This phase builds the **consumer-facing** side of TasteTales — the discovery m
 
 ## Current State (After Phase 0)
 
-- **Frontend scaffolded:** `apps/frontend/` — React 18 + Vite + TypeScript + React Router + Supabase JS client + `@vis.gl/react-google-maps`
+- **Frontend scaffolded:** `apps/frontend/` — React 18 + Vite + TypeScript + React Router + `@vis.gl/react-google-maps`
 - **Routes exist:** `/` (discovery), `/restaurant/:id` (detail/story), `/owner/:restaurantId` (Dev A)
 - **Shared types defined** in `src/types/index.ts` (`Restaurant`, `RestaurantImage`, `StoryTemplate`, `UserProfile`, `StorySegment`, `CompiledStory`)
-- **Supabase configured** with env vars `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
 - **Google Maps configured** with `VITE_GOOGLE_MAPS_API_KEY`
 - **Seed data loaded:** 5 mock restaurants with lat/lng, images with tags, 3 user personas ("The Vegan", "The Carnivore", "The Cocktail Lover")
 
 ## What Dev A is Building in Parallel
 
-Dev A is building the **Owner Dashboard** (`/owner/:restaurantId`) and the Flask backend API endpoints (`/api/restaurants`, `/api/restaurants/<id>/story/personalize`, etc.). Dev B should **not block** on Dev A's API — read directly from Supabase using the JS client for all data needs during this phase.
+Dev A is building the **Owner Dashboard** (`/owner/:restaurantId`) and the Flask backend API endpoints (`/api/restaurants`, `/api/restaurants/<id>/story/personalize`, etc.). Dev B should **not block** on Dev A's full API — start with the basic GET endpoints that Dev A will deliver first, or use local mock data as a temporary fallback.
 
 ## Key Dependencies & Gotchas
 
 - **Google Maps API key** must have "Maps JavaScript API" enabled in Google Cloud Console.
 - `@vis.gl/react-google-maps` requires `<APIProvider apiKey={...}>` wrapper at the app root or around the map page.
-- **Google Places images may have CORS issues.** If images fail to load, you may need to proxy them through the backend or use Supabase Storage URLs instead.
+- **Google Places images may have CORS issues.** If images fail to load, you may need to proxy them through the backend.
 - Ken Burns CSS animations require `overflow: hidden` on the container and the image to be slightly larger than its container.
 - Mobile-first: design for phone viewport (100vw × 100vh story player), but it should also work on desktop.
 - The persona switcher must trigger an **instant** story recompile — no page reload.
@@ -34,8 +33,7 @@ Dev A is building the **Owner Dashboard** (`/owner/:restaurantId`) and the Flask
 - `apps/frontend/src/App.tsx` — Router setup, wrap with providers here
 - `apps/frontend/src/pages/` — Page components (DiscoveryPage, RestaurantStoryPage)
 - `apps/frontend/src/components/` — Reusable UI components
-- `apps/frontend/src/lib/supabase.ts` — Supabase client instance
-- `apps/frontend/.env` — Environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_GOOGLE_MAPS_API_KEY)
+- `apps/frontend/.env` — Environment variables (VITE_GOOGLE_MAPS_API_KEY, VITE_API_BASE_URL)
 
 ### Notes
 
@@ -46,75 +44,9 @@ Dev A is building the **Owner Dashboard** (`/owner/:restaurantId`) and the Flask
 
 ---
 
-## Supabase Schema Reference (JSON)
+## Data Model Reference
 
-**`restaurants`**
-```json
-{
-  "table": "restaurants",
-  "columns": {
-    "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
-    "google_place_id":  { "type": "text", "unique": true, "required": true },
-    "name":             { "type": "text", "required": true },
-    "address":          { "type": "text" },
-    "lat":              { "type": "float" },
-    "lng":              { "type": "float" },
-    "rating":           { "type": "float" },
-    "cuisine_type":     { "type": "text[]" },
-    "phone":            { "type": "text" },
-    "website":          { "type": "text" },
-    "created_at":       { "type": "timestamptz", "default": "now()" }
-  }
-}
-```
-
-**`restaurant_images`**
-```json
-{
-  "table": "restaurant_images",
-  "columns": {
-    "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
-    "restaurant_id":    { "type": "uuid", "foreignKey": { "table": "restaurants", "column": "id", "onDelete": "cascade" }, "required": true },
-    "image_url":        { "type": "text", "required": true },
-    "source":           { "type": "text", "default": "google", "enum": ["google", "owner_upload"] },
-    "tags":             { "type": "text[]", "description": "AI-generated tags, e.g. ['vegan', 'cocktail', 'steak']" },
-    "slot_type":        { "type": "text", "default": "personalized", "enum": ["intro", "personalized", "outro"] },
-    "display_order":    { "type": "int" },
-    "created_at":       { "type": "timestamptz", "default": "now()" }
-  }
-}
-```
-
-**`story_templates`**
-```json
-{
-  "table": "story_templates",
-  "columns": {
-    "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
-    "restaurant_id":    { "type": "uuid", "foreignKey": { "table": "restaurants", "column": "id", "onDelete": "cascade" }, "required": true },
-    "intro_image_id":   { "type": "uuid", "foreignKey": { "table": "restaurant_images", "column": "id" } },
-    "outro_image_id":   { "type": "uuid", "foreignKey": { "table": "restaurant_images", "column": "id" } },
-    "cta_text":         { "type": "text", "default": "Book a Table" },
-    "cta_url":          { "type": "text" },
-    "created_at":       { "type": "timestamptz", "default": "now()" }
-  }
-}
-```
-
-**`user_profiles`**
-```json
-{
-  "table": "user_profiles",
-  "columns": {
-    "id":               { "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()" },
-    "name":             { "type": "text", "required": true },
-    "avatar_url":       { "type": "text" },
-    "persona_type":     { "type": "text", "required": true, "enum": ["vegan", "carnivore", "cocktail_lover"] },
-    "preferences":      { "type": "jsonb", "required": true, "schema": { "tags": "string[]", "avoid_tags": "string[]" } },
-    "created_at":       { "type": "timestamptz", "default": "now()" }
-  }
-}
-```
+See shared TypeScript types in `src/types/index.ts` for the full data model. Data is served by the backend API from JSON files.
 
 ---
 
@@ -126,12 +58,12 @@ Dev A is building the **Owner Dashboard** (`/owner/:restaurantId`) and the Flask
 
 `priority`: HIGH
 
-`dependencies`: Phase 0 complete (frontend scaffolded, Supabase seeded, Google Maps key configured)
+`dependencies`: Phase 0 complete (frontend scaffolded, JSON data seeded, Google Maps key configured)
 
 `details`:
 - Use `@vis.gl/react-google-maps` to render a Google Map centered on the seeded restaurant cluster.
 - Wrap the map (or the entire app) with `<APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>`.
-- Fetch all restaurants from Supabase directly: `supabase.from('restaurants').select('*')`.
+- Fetch all restaurants from the backend API: `fetch('/api/restaurants')`.
 - Place `<AdvancedMarker>` (or `<Marker>`) pins on the map for each restaurant using `lat`/`lng`.
 - Below the map, render a scrollable list of restaurant cards showing: name, rating (stars), cuisine type pills, and a small thumbnail image (first image from `restaurant_images`).
 - Clicking a card or a map pin navigates to `/restaurant/:id` using React Router's `useNavigate`.
@@ -142,7 +74,7 @@ Dev A is building the **Owner Dashboard** (`/owner/:restaurantId`) and the Flask
 
 - [ ] 1.1 Create `DiscoveryPage` component at `apps/frontend/src/pages/DiscoveryPage.tsx`
   - Set up the page layout: map container (top) + card list container (bottom).
-  - Add a `useEffect` to fetch restaurants from Supabase on mount.
+  - Add a `useEffect` to fetch restaurants from the API on mount.
   - Store restaurants in local state.
   - **Done when:** Component renders with placeholder text "Discovery Map" and "Restaurant Cards" sections.
 
@@ -161,7 +93,7 @@ Dev A is building the **Owner Dashboard** (`/owner/:restaurantId`) and the Flask
 
 - [ ] 1.4 Build restaurant card list below the map
   - Create a `RestaurantCard` component: shows name, rating (e.g., "⭐ 4.5"), cuisine type tags, and a thumbnail image.
-  - Fetch the first image for each restaurant from `restaurant_images` (or include in the initial query using Supabase's nested select: `supabase.from('restaurants').select('*, restaurant_images(image_url)')`).
+  - Fetch the first image from the API response (`GET /api/restaurants` returns images inline).
   - Render cards in a vertical scrollable list.
   - On card click, navigate to `/restaurant/:id`.
   - **Done when:** Cards render for all 5 restaurants with real data, clicking navigates correctly.
@@ -180,11 +112,11 @@ Dev A is building the **Owner Dashboard** (`/owner/:restaurantId`) and the Flask
 
 `priority`: HIGH
 
-`dependencies`: Phase 0 complete (user_profiles seeded in Supabase)
+`dependencies`: Phase 0 complete (user_profiles.json seeded)
 
 `details`:
 - Create a `UserProfileContext` using React Context to store the active user persona.
-- Fetch all user profiles from Supabase on app load.
+- Fetch all user profiles from the backend API on app load.
 - Render a floating bar (bottom of screen or top-right corner) visible on all pages.
 - Show 3 persona pills/avatars: 🥬 Vegan, 🥩 Carnivore, 🍸 Cocktail Lover.
 - Clicking a persona sets it as active (highlighted/selected state).
@@ -196,7 +128,7 @@ Dev A is building the **Owner Dashboard** (`/owner/:restaurantId`) and the Flask
 - [ ] 2.1 Create `UserProfileContext` and provider
   - Create `apps/frontend/src/contexts/UserProfileContext.tsx`.
   - Define context with `activeProfile: UserProfile | null`, `setActiveProfile`, `profiles: UserProfile[]`, `loading: boolean`.
-  - In the provider, fetch profiles from Supabase on mount: `supabase.from('user_profiles').select('*')`.
+  - In the provider, fetch profiles from the API on mount: `fetch('/api/user-profiles')`.
   - Default `activeProfile` to the profile where `persona_type === 'vegan'`.
   - **Done when:** Context is created and provider wraps the app in `App.tsx`.
 
@@ -331,15 +263,15 @@ Dev A is building the **Owner Dashboard** (`/owner/:restaurantId`) and the Flask
 
 ### [ ] 5.0 Story Compilation Logic (Client-Side)
 
-`description`: Logic that fetches restaurant data from Supabase and compiles a `CompiledStory` — selecting and ordering images based on the active user persona's tag preferences. This is a temporary client-side version; Phase 2 will enhance it with Gemini AI personalization.
+`description`: Logic that fetches restaurant data from the backend API and compiles a `CompiledStory` — selecting and ordering images based on the active user persona's tag preferences. This is a temporary client-side version; Phase 2 will enhance it with Gemini AI personalization.
 
 `priority`: HIGH
 
-`dependencies`: Task 2.0 (UserProfileContext provides active persona), Supabase seeded with data
+`dependencies`: Task 2.0 (UserProfileContext provides active persona), JSON data files seeded
 
 `details`:
 - Create a `useCompiledStory(restaurantId: string)` custom hook.
-- Fetches from Supabase: restaurant, its images (`restaurant_images`), and story template (`story_templates`).
+- Fetches from the API: restaurant with its images and story template.
 - Compiles the story using the active persona from `UserProfileContext`.
 - Story structure:
   1. **Intro segment:** Image referenced by `story_template.intro_image_id`, or the first image with `slot_type = 'intro'`, or the first image overall as fallback.
@@ -360,11 +292,10 @@ Dev A is building the **Owner Dashboard** (`/owner/:restaurantId`) and the Flask
 - [ ] 5.1 Create `useCompiledStory` hook
   - Create `apps/frontend/src/hooks/useCompiledStory.ts`.
   - Accept `restaurantId: string` parameter.
-  - Fetch restaurant: `supabase.from('restaurants').select('*').eq('id', restaurantId).single()`.
-  - Fetch images: `supabase.from('restaurant_images').select('*').eq('restaurant_id', restaurantId).order('display_order')`.
-  - Fetch story template: `supabase.from('story_templates').select('*').eq('restaurant_id', restaurantId).single()`.
+  - Fetch restaurant with images: `fetch('/api/restaurants/${restaurantId}')` (images are included in the response).
+  - Fetch story template: `fetch('/api/restaurants/${restaurantId}/story-template')`.
   - Return `{ story: CompiledStory | null, loading: boolean, error: string | null }`.
-  - **Done when:** Hook fetches data from Supabase and returns raw data (compilation logic comes next).
+  - **Done when:** Hook fetches data from the backend API and returns raw data (compilation logic comes next).
 
 - [ ] 5.2 Implement tag-based image filtering
   - Create a helper function: `filterImagesByPersona(images: RestaurantImage[], profile: UserProfile): RestaurantImage[]`.
@@ -387,7 +318,7 @@ Dev A is building the **Owner Dashboard** (`/owner/:restaurantId`) and the Flask
 
 - [ ] 5.4 Re-compile on persona change
   - Add `activeProfile` from `UserProfileContext` as a dependency of the compilation `useEffect` / `useMemo`.
-  - When `activeProfile` changes, re-run the filtering and compilation (but don't re-fetch from Supabase — cache the raw data).
+  - When `activeProfile` changes, re-run the filtering and compilation (but don't re-fetch from the API — cache the raw data).
   - **Done when:** Switching persona in the UI instantly changes the story segments (different images appear).
 
 ---

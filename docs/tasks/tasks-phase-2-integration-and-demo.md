@@ -20,8 +20,8 @@ different images. This must work flawlessly.
 ## Current State (After Phase 1A + 1B)
 
 ### Phase 0 delivered:
-- Supabase schema (`restaurants`, `restaurant_images`, `story_templates`, `user_profiles`)
-- Environment variables configured (Supabase URL/keys, Google API keys, Gemini key)
+- JSON data files (`restaurants.json`, `restaurant_images.json`, `story_templates.json`, `user_profiles.json`)
+- Environment variables configured (Google API keys, Gemini key)
 - React Router setup, Flask API structure
 - Seed data: 3 personas (vegan, carnivore, cocktail_lover) + 5 restaurants
 - Shared TypeScript types in `apps/frontend/src/`
@@ -45,38 +45,17 @@ different images. This must work flawlessly.
 - **User persona switcher** (React Context, 3 personas: vegan, carnivore, cocktail_lover)
 - **Instagram-style Story Player** with progress bars, tap navigation, auto-advance, close button
 - **Ken Burns animation engine** (4 animation types, crossfade transitions)
-- **Client-side story compilation** with basic tag-based filtering (direct Supabase reads)
+- **Client-side story compilation** with basic tag-based filtering (via backend API)
 - Loading skeletons, error fallbacks, image preloading
 
-### Supabase Schema Reference (JSON)
-```json
-{
-  "tables": {
-    "restaurants": {
-      "id": "uuid (PK)", "google_place_id": "text (unique)", "name": "text",
-      "address": "text", "lat": "float", "lng": "float", "rating": "float",
-      "cuisine_type": "text[]", "phone": "text", "website": "text", "created_at": "timestamptz"
-    },
-    "restaurant_images": {
-      "id": "uuid (PK)", "restaurant_id": "uuid (FK → restaurants.id, cascade)",
-      "image_url": "text", "source": "text (google | owner_upload)",
-      "tags": "text[]", "slot_type": "text (intro | personalized | outro)",
-      "display_order": "int", "created_at": "timestamptz"
-    },
-    "story_templates": {
-      "id": "uuid (PK)", "restaurant_id": "uuid (FK → restaurants.id, cascade)",
-      "intro_image_id": "uuid (FK → restaurant_images.id)",
-      "outro_image_id": "uuid (FK → restaurant_images.id)",
-      "cta_text": "text (default: 'Book a Table')", "cta_url": "text", "created_at": "timestamptz"
-    },
-    "user_profiles": {
-      "id": "uuid (PK)", "name": "text", "avatar_url": "text",
-      "persona_type": "text (vegan | carnivore | cocktail_lover)",
-      "preferences": "jsonb { tags: string[], avoid_tags: string[] }", "created_at": "timestamptz"
-    }
-  }
-}
-```
+### Data Model Reference
+
+Data stored in `apps/backend/data/` as JSON files. See shared TypeScript types in `apps/frontend/src/types/index.ts` for the full data model.
+
+- **`restaurants.json`** — Array of restaurant objects (id, name, address, lat/lng, rating, cuisine_type, etc.)
+- **`restaurant_images.json`** — Array of image objects (id, restaurant_id, image_url, tags, slot_type, display_order, etc.)
+- **`story_templates.json`** — Array of story template objects (id, restaurant_id, intro_image_id, outro_image_id, cta_text, cta_url)
+- **`user_profiles.json`** — Array of user profile objects (id, name, persona_type, preferences with tags/avoid_tags)
 
 ### Shared TypeScript Types
 ```typescript
@@ -131,14 +110,14 @@ Existing (from Phase 1A): `GET /api/restaurants`, `GET /api/restaurants/<id>`,
   `curl` before wiring the frontend.
 - **Time management**: Last 30 minutes should be ONLY testing and fixing, no new
   features. If something works, move on.
-- **Env vars on Vercel**: All keys (Supabase URL, Supabase anon key, Google Maps API
-  key, Gemini API key) must be set in Vercel project settings before deploy.
+- **Env vars on Vercel**: All keys (Google Maps API key, Google Places API key,
+  Gemini API key) must be set in Vercel project settings before deploy.
 
 ## Relevant Files
 
 - `apps/backend/api/index.py` - Flask app entry point; add the `/story/personalize` route here
 - `apps/backend/api/personalize.py` - **New file**: Gemini personalization logic and endpoint handler
-- `apps/backend/api/cache.py` - **New file**: Cache layer for pre-generated stories (Supabase or in-memory)
+- `apps/backend/api/cache.py` - **New file**: Cache layer for pre-generated stories (in-memory or JSON file)
 - `apps/backend/api/warmup.py` - **New file**: Script to pre-generate 15 story combinations
 - `apps/backend/requirements.txt` - May need `google-generativeai` if not already present
 - `apps/frontend/src/App.tsx` - Root component with routing
@@ -187,9 +166,9 @@ that different personas produce different image selections. Test Gemini failure
 fallback by temporarily using a bad API key.
 
 - [ ] 1.1 Create `apps/backend/api/personalize.py` with the route handler function for `POST /api/restaurants/<id>/story/personalize`. Accept JSON body `{ "user_profile_id": "uuid" }`. Return 400 if `user_profile_id` is missing.
-- [ ] 1.2 In the handler, query Supabase for the restaurant's images where `slot_type = 'personalized'`, including their `tags`. Also fetch the images with `slot_type = 'intro'` and `slot_type = 'outro'`. Return 404 if restaurant not found.
-- [ ] 1.3 Query Supabase for the `user_profiles` row matching the provided `user_profile_id`. Extract `preferences.tags` and `preferences.avoid_tags`. Return 404 if user not found.
-- [ ] 1.4 Query Supabase for the `story_templates` row for this restaurant. If none exists, use sensible defaults (first image as intro, last as outro, CTA text "Visit us!").
+- [ ] 1.2 In the handler, read from `restaurant_images.json` via `data_store` for the restaurant's images where `slot_type = 'personalized'`, including their `tags`. Also fetch the images with `slot_type = 'intro'` and `slot_type = 'outro'`. Return 404 if restaurant not found.
+- [ ] 1.3 Read from `user_profiles.json` via `data_store` for the row matching the provided `user_profile_id`. Extract `preferences.tags` and `preferences.avoid_tags`. Return 404 if user not found.
+- [ ] 1.4 Read from `story_templates.json` via `data_store` for this restaurant. If none exists, use sensible defaults (first image as intro, last as outro, CTA text "Visit us!").
 - [ ] 1.5 Build the Gemini prompt: `"Given a user who prefers [tags] and avoids [avoid_tags], rank these restaurant images by relevance. Images: [list of {id, tags}]. Return ONLY a JSON array of image IDs ordered by relevance, most relevant first. No explanation, no markdown, just the JSON array."` Call `google.generativeai` with this prompt.
 - [ ] 1.6 Parse Gemini's response. Strip any markdown code fences (` ```json ... ``` `). Attempt `json.loads()`. If parsing fails, log the raw response and fall through to the fallback.
 - [ ] 1.7 Implement the tag-matching fallback: score each personalized image by counting matching `tags` (+1 per match) and `avoid_tags` (-2 per match). Sort by score descending. This mirrors Dev B's client-side logic.
@@ -202,7 +181,7 @@ fallback by temporarily using a bad API key.
 
 ### [ ] 2.0 Wire Story Player to Backend API (Dev B — Frontend)
 
-`description`: Replace the client-side story compilation (direct Supabase reads +
+`description`: Replace the client-side story compilation (API reads +
 tag matching) with calls to the new `POST /api/restaurants/<id>/story/personalize`
 endpoint. The Story Player should receive a `CompiledStory` from the API and render
 it directly.
@@ -219,7 +198,7 @@ images. Kill the backend, verify the fallback kicks in and the story still loads
 - [ ] 2.1 Create `apps/frontend/src/hooks/usePersonalizedStory.ts`. This custom hook takes `restaurantId: string` and `userProfileId: string` as arguments. It calls `POST /api/restaurants/${restaurantId}/story/personalize` with `{ user_profile_id: userProfileId }` and returns `{ story: CompiledStory | null, loading: boolean, error: Error | null }`.
 - [ ] 2.2 In the hook, add error handling: if the API returns a non-200 status or the network request fails, set the `error` state and return `null` for `story`. The consuming component will use this to trigger the fallback.
 - [ ] 2.3 In the hook, re-fetch when `userProfileId` changes (persona switch). Use `userProfileId` in the `useEffect` dependency array. Cancel any in-flight request when a new one starts (use `AbortController`).
-- [ ] 2.4 Update the Story page/component (e.g., `StoryPage.tsx`) to use `usePersonalizedStory` instead of the existing direct Supabase query + client-side compilation. Pass the active persona's `id` from the persona context.
+- [ ] 2.4 Update the Story page/component (e.g., `StoryPage.tsx`) to use `usePersonalizedStory` instead of the existing API query + client-side compilation. Pass the active persona's `id` from the persona context.
 - [ ] 2.5 Add fallback logic in the Story page: if `usePersonalizedStory` returns an error, fall back to the existing client-side story compilation function. Show a brief toast or console warning: "Using offline story compilation."
 - [ ] 2.6 Show the existing loading skeleton while `loading` is `true`. Ensure it matches the story player dimensions so there's no layout shift.
 - [ ] 2.7 Test the full flow: discovery map → click restaurant → loading skeleton → story plays with API data. Switch persona → loading skeleton → story replays with different images.
@@ -278,7 +257,7 @@ appears. Check the console or network tab for the logged click event.
 - [ ] 5.1 **(Dev B — Frontend)** In the Story Player component, detect when the current segment has a `cta` field. When present, render a large button at the bottom of the screen with the `cta.text` value (e.g., "Book a Table"). Style it as a prominent, semi-transparent overlay button that doesn't obscure the story image.
 - [ ] 5.2 **(Dev B — Frontend)** On CTA button click, show a toast notification: "Booking requested! 🎉" Use a simple toast component or CSS animation (no need for a toast library — keep it lightweight).
 - [ ] 5.3 **(Dev B — Frontend)** Log the CTA click event: `console.log('CTA_CLICK', { restaurant_id, persona_type, cta_text, timestamp })`. In a real product this would be an analytics event; for the PoC, console logging is sufficient.
-- [ ] 5.4 **(Dev A — Backend, optional)** If time allows, add a `POST /api/analytics/cta-click` endpoint that stores clicks in a simple Supabase table or logs them. This can power a "CTA clicks by persona" metric for the demo. Skip if time is tight.
+- [ ] 5.4 **(Dev A — Backend, optional)** If time allows, add a `POST /api/analytics/cta-click` endpoint that stores clicks in a JSON file or logs them. This can power a "CTA clicks by persona" metric for the demo. Skip if time is tight.
 
 ### [ ] 6.0 Pre-warm Cache / Pre-generate Stories (Dev A — Backend)
 
@@ -287,7 +266,7 @@ restaurant × persona combinations (5 restaurants × 3 personas) and caches the
 results. This ensures instant story loading during the demo — no waiting for Gemini.
 `priority`: Critical for demo — Gemini latency will kill the persona-switching moment
 `dependencies`: Task 1.0 must be fully working
-`details`: The cache can be a Supabase table (`cached_stories`) or a simple
+`details`: The cache can be a JSON file (`apps/backend/data/cached_stories.json`) or a simple
 in-memory Python dictionary. The personalize endpoint (Task 1.0) should check this
 cache first. The warmup script calls the personalize endpoint 15 times and stores
 each result.
@@ -295,9 +274,9 @@ each result.
 personalize endpoint and verify it returns instantly (< 200ms) with cached data.
 Clear the cache and verify it falls back to live Gemini calls.
 
-- [ ] 6.1 Create `apps/backend/api/cache.py` with a cache interface. Implement two functions: `get_cached_story(restaurant_id: str, user_profile_id: str) -> dict | None` and `set_cached_story(restaurant_id: str, user_profile_id: str, story: dict) -> None`. Use a Supabase table `cached_stories` with columns `(restaurant_id, user_profile_id, story_json JSONB, created_at)` or a module-level Python dictionary for simplicity.
+- [ ] 6.1 Create `apps/backend/api/cache.py` with a cache interface. Implement two functions: `get_cached_story(restaurant_id: str, user_profile_id: str) -> dict | None` and `set_cached_story(restaurant_id: str, user_profile_id: str, story: dict) -> None`. Use a JSON file `apps/backend/data/cached_stories.json` or a module-level Python dictionary for simplicity.
 - [ ] 6.2 Integrate the cache into the personalize endpoint (Task 1.12): at the top of the handler, call `get_cached_story()`. If it returns a result, return it immediately. After generating a new story (via Gemini or fallback), call `set_cached_story()` to save it.
-- [ ] 6.3 Create `apps/backend/api/warmup.py` — a script or endpoint (`POST /api/warmup`) that fetches all restaurants and all user profiles from Supabase, then calls the personalize logic for each combination (5 × 3 = 15). Store results via `set_cached_story()`.
+- [ ] 6.3 Create `apps/backend/api/warmup.py` — a script or endpoint (`POST /api/warmup`) that reads all restaurants and all user profiles from the JSON data files, then calls the personalize logic for each combination (5 × 3 = 15). Store results via `set_cached_story()`.
 - [ ] 6.4 Add a `GET /api/cache/status` endpoint that returns the number of cached stories and lists which combinations are cached. Useful for verifying the warmup ran correctly.
 - [ ] 6.5 Run the warmup script and verify all 15 combinations are cached. Test that the personalize endpoint returns cached results instantly.
 
@@ -336,7 +315,7 @@ an actual mobile phone if possible.
 desktop and mobile. Verify all 5 restaurants load, stories play, persona switching
 works, CTA appears. Check browser console for errors.
 
-- [ ] 8.1 Verify all required environment variables are set in the Vercel project settings: `SUPABASE_URL`, `SUPABASE_ANON_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`), `GOOGLE_MAPS_API_KEY`, `GEMINI_API_KEY`. Add any missing ones.
+- [ ] 8.1 Verify all required environment variables are set in the Vercel project settings: `GOOGLE_MAPS_API_KEY`, `GOOGLE_PLACES_API_KEY`, `GEMINI_API_KEY`. Add any missing ones.
 - [ ] 8.2 Review `vercel.json` to ensure API routes are correctly mapped: `/api/*` should proxy to the Flask backend. Verify the frontend build output serves from `/`.
 - [ ] 8.3 Deploy: either `vercel deploy --prod` from the CLI or push to the `main` branch (if Vercel auto-deploy is configured via GitHub integration).
 - [ ] 8.4 Run the warmup script against the **production** API URL to pre-generate cached stories on the deployed instance.
