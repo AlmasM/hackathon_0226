@@ -1,0 +1,12 @@
+{
+  "name": "hackathon_0226",
+  "private": true,
+  "workspaces": [
+    "apps/frontend"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace @hackathon/frontend",
+    "build:frontend": "npm run build --workspace @hackathon/frontend",
+    "preview:frontend": "npm run preview --workspace @hackathon/frontend"
+  }
+}
