@@ -173,18 +173,7 @@ export default function StoryPlayer({
       )}
       <div className="story-player__backdrop" />
       {personaLabel && (
-        <div
-          className="story-player__persona-overlay"
-          style={{
-            position: "absolute",
-            top: 28,
-            left: 16,
-            zIndex: 59,
-            color: "#fff",
-            textShadow: "0 1px 2px rgba(0,0,0,0.8)",
-            fontSize: 13,
-          }}
-        >
+        <div className="story-player__persona-overlay">
           Personalized for you, {personaLabel}
         </div>
       )}

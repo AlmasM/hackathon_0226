@@ -141,8 +141,8 @@ Create the `apps/backend/data/` directory and populate it with 4 JSON files. The
   ```json
   [
     {
-      "id": "r1",
-      "google_place_id": "ChIJAQBEylJYwokRlNgMJJHxNiA",
+      "id": "ChIJV7QQ6kdZwokRax4615zpSGU",
+      "google_place_id": "ChIJV7QQ6kdZwokRax4615zpSGU",
       "name": "Le Bernardin",
       "address": "155 W 51st St, New York, NY",
       "lat": 40.7618,
@@ -153,7 +153,7 @@ Create the `apps/backend/data/` directory and populate it with 4 JSON files. The
       "website": null
     },
     {
-      "id": "r2",
+      "id": "ChIJ4WAmhqJZwokRIPEYdG2QROI",
       "google_place_id": "ChIJ4WAmhqJZwokRIPEYdG2QROI",
       "name": "Peter Luger Steak House",
       "address": "178 Broadway, Brooklyn, NY",
@@ -165,7 +165,7 @@ Create the `apps/backend/data/` directory and populate it with 4 JSON files. The
       "website": null
     },
     {
-      "id": "r3",
+      "id": "ChIJhUBe4WBZwokRnLGNGx5paQQ",
       "google_place_id": "ChIJhUBe4WBZwokRnLGNGx5paQQ",
       "name": "Death & Co",
       "address": "433 E 6th St, New York, NY",
@@ -177,7 +177,7 @@ Create the `apps/backend/data/` directory and populate it with 4 JSON files. The
       "website": null
     },
     {
-      "id": "r4",
+      "id": "ChIJi3MwDPRYwokR7L20FGbVECU",
       "google_place_id": "ChIJi3MwDPRYwokR7L20FGbVECU",
       "name": "By Chloe",
       "address": "185 Bleecker St, New York, NY",
@@ -189,7 +189,7 @@ Create the `apps/backend/data/` directory and populate it with 4 JSON files. The
       "website": null
     },
     {
-      "id": "r5",
+      "id": "ChIJK1Gm8RpZwokRn2p5Z3PjfVo",
       "google_place_id": "ChIJK1Gm8RpZwokRn2p5Z3PjfVo",
       "name": "Gramercy Tavern",
       "address": "42 E 20th St, New York, NY",
@@ -202,7 +202,7 @@ Create the `apps/backend/data/` directory and populate it with 4 JSON files. The
     }
   ]
   ```
-  - **Done when:** File exists with 5 restaurant objects, each with an `id` field.
+  - **Done when:** File exists with 5 restaurant objects; each has an `id` equal to its `google_place_id` (real place IDs).
   - **NOTE:** These Place IDs are approximate. If the Google Places import in Phase 1A fails with "Place not found," you may need to look up the correct Place IDs via the [Place ID Finder](https://developers.google.com/maps/documentation/places/web-service/place-id).
 - [ ] 3.3 Create `apps/backend/data/restaurant_images.json` with an empty array:
   ```json

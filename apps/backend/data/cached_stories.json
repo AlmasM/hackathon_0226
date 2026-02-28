@@ -8,11 +8,7 @@
       "lat": 40.7618,
       "lng": -73.9818,
       "rating": 4.7,
-      "cuisine_type": [
-        "french",
-        "seafood",
-        "fine_dining"
-      ],
+      "cuisine_type": ["french", "seafood", "fine_dining"],
       "phone": null,
       "website": null
     },

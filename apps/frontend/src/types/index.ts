@@ -9,6 +9,10 @@ export interface Restaurant {
   cuisine_type: string[];
   phone?: string;
   website?: string;
+  /** True if the restaurant has an owner story template (from API). */
+  has_story?: boolean;
+  /** Google Place photos (loaded by default, no import). */
+  photos?: PlacePhoto[];
 }
 
 /** Restaurant as returned by API when images are included inline */
@@ -20,6 +24,31 @@ export interface RestaurantWithImages extends Restaurant {
 export interface RestaurantListItem extends Restaurant {
   thumbnail_url?: string | null;
 }
+
+/** Google-sourced photo (no import step). */
+export interface PlacePhoto {
+  image_url: string;
+}
+
+/** Unclaimed place from GET /api/place-by-google-id (Google place only). Enriched with rating, reviews, and photos when available. */
+export interface PlaceFromGoogle {
+  google_place_id: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  thumbnail_url?: string | null;
+  rating?: number;
+  reviewCount?: number;
+  reviews?: PlaceReview[];
+  /** Google Place photos (loaded by default, no import). */
+  photos?: PlacePhoto[];
+}
+
+/** Response from GET /api/place-by-google-id */
+export type PlaceByGoogleIdResponse =
+  | { claimed: true; restaurant: Restaurant & { images?: RestaurantImage[] } }
+  | { claimed: false; place: PlaceFromGoogle };
 
 /** Google Place review snippet for cards */
 export interface PlaceReview {

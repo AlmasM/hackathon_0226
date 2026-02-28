@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import type { Restaurant, RestaurantImage } from "../types";
+import type { PlaceReview, Restaurant, RestaurantImage } from "../types";
+import PlaceReviews from "../components/PlaceReviews";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ??
@@ -15,6 +16,8 @@ export default function RestaurantDetailPage() {
   const [restaurant, setRestaurant] = useState<RestaurantWithImages | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<{ reviewCount: number; reviews: PlaceReview[] } | null>(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -37,6 +40,33 @@ export default function RestaurantDetailPage() {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    if (!id || !restaurant) return;
+    let cancelled = false;
+    setReviewsLoading(true);
+    setReviews(null);
+    fetch(`${API_BASE}/api/restaurants/${id}/google-reviews`)
+      .then((res) => {
+        if (!res.ok) return { reviewCount: 0, reviews: [] };
+        return res.json();
+      })
+      .then((data) => {
+        if (!cancelled) {
+          setReviews({
+            reviewCount: data.reviewCount ?? 0,
+            reviews: data.reviews ?? [],
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setReviews({ reviewCount: 0, reviews: [] });
+      })
+      .finally(() => {
+        if (!cancelled) setReviewsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [id, restaurant]);
 
   if (loading) {
     return (
@@ -70,7 +100,9 @@ export default function RestaurantDetailPage() {
 
   const images = restaurant.images ?? [];
   const sortedImages = [...images].sort((a, b) => a.display_order - b.display_order);
-  const heroUrl = sortedImages[0]?.image_url ?? null;
+  const googlePhotos = restaurant.photos ?? [];
+  const heroUrl = sortedImages[0]?.image_url ?? googlePhotos[0]?.image_url ?? null;
+  const hasAnyPhotos = sortedImages.length > 0 || googlePhotos.length > 0;
 
   return (
     <div className="restaurant-detail-page">
@@ -93,6 +125,19 @@ export default function RestaurantDetailPage() {
       </div>
 
       <div className="restaurant-detail-page__content">
+        {restaurant.has_story && (
+          <section className="restaurant-detail-page__story-first" aria-label="Owner's story">
+            <p className="restaurant-detail-page__story-first-label">Owner&apos;s story</p>
+            <button
+              type="button"
+              className="restaurant-detail-page__watch-story restaurant-detail-page__watch-story--primary"
+              onClick={() => navigate(`/restaurant/${id}/story`)}
+            >
+              Watch story
+            </button>
+          </section>
+        )}
+
         <h1 className="restaurant-detail-page__name">{restaurant.name}</h1>
         <div className="restaurant-detail-page__rating">
           ⭐ {restaurant.rating.toFixed(1)}
@@ -131,7 +176,7 @@ export default function RestaurantDetailPage() {
           )}
         </div>
 
-        {sortedImages.length > 0 && (
+        {hasAnyPhotos && (
           <section className="restaurant-detail-page__photos" aria-label="Photos">
             <h2 className="restaurant-detail-page__section-title">Photos</h2>
             <div className="restaurant-detail-page__photo-grid">
@@ -145,25 +190,46 @@ export default function RestaurantDetailPage() {
                   />
                 </div>
               ))}
+              {googlePhotos.map((photo, i) => (
+                <div key={`g-${i}`} className="restaurant-detail-page__photo-wrap">
+                  <img
+                    src={photo.image_url}
+                    alt=""
+                    className="restaurant-detail-page__photo"
+                    loading="lazy"
+                  />
+                </div>
+              ))}
             </div>
           </section>
         )}
 
-        <section className="restaurant-detail-page__reviews" aria-label="Reviews">
-          <h2 className="restaurant-detail-page__section-title">Reviews</h2>
-          <p className="restaurant-detail-page__reviews-placeholder">
-            Reviews from Google can be shown here when integrated with Places API.
-          </p>
-        </section>
+        <PlaceReviews
+          reviewCount={reviews?.reviewCount ?? 0}
+          reviews={reviews?.reviews ?? []}
+          loading={reviewsLoading}
+        />
 
         <div className="restaurant-detail-page__actions">
-          <button
-            type="button"
-            className="restaurant-detail-page__watch-story"
-            onClick={() => navigate(`/restaurant/${id}/story`)}
+          {restaurant.has_story && (
+            <button
+              type="button"
+              className="restaurant-detail-page__watch-story"
+              onClick={() => navigate(`/restaurant/${id}/story`)}
+            >
+              Watch Story
+            </button>
+          )}
+          <a
+            href={`/owner/${id}`}
+            className="restaurant-detail-page__manage-link"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate(`/owner/${id}`);
+            }}
           >
-            Watch Story
-          </button>
+            Manage this place
+          </a>
         </div>
       </div>
     </div>
