@@ -11,6 +11,11 @@ export interface Restaurant {
   website?: string;
 }
 
+/** Restaurant as returned by API when images are included inline */
+export interface RestaurantWithImages extends Restaurant {
+  restaurant_images?: RestaurantImage[];
+}
+
 export interface RestaurantImage {
   id: string;
   restaurant_id: string;

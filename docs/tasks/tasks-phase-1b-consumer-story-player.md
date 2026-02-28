@@ -30,8 +30,17 @@ Dev A is building the **Owner Dashboard** (`/owner/:restaurantId`) and the Flask
 ## Relevant Files
 
 - `apps/frontend/src/types/index.ts` — Shared TypeScript interfaces
-- `apps/frontend/src/App.tsx` — Router setup, wrap with providers here
-- `apps/frontend/src/pages/` — Page components (DiscoveryPage, RestaurantStoryPage)
+- `apps/frontend/src/App.tsx` — Router setup, APIProvider wrapper
+- `apps/frontend/src/pages/DiscoveryPage.tsx` — Discovery map page (map + card list)
+- `apps/frontend/src/contexts/UserProfileContext.tsx` — User persona context and provider
+- `apps/frontend/src/components/StoryLoadingSkeleton.tsx` — Loading skeleton for story fetch
+- `apps/frontend/src/components/RestaurantDetailBar.tsx` — Restaurant name/rating/cuisine bar in story
+- `apps/frontend/src/hooks/useCompiledStory.ts` — Fetch + compile story by persona
+- `apps/frontend/src/pages/RestaurantStoryPage.tsx` — Story page (useCompiledStory + StoryPlayer)
+- `apps/frontend/src/components/StoryPlayer.tsx` — Full-screen story reel (segments, progress, tap nav)
+- `apps/frontend/src/components/PersonaSwitcher.tsx` — Floating persona pill bar
+- `apps/frontend/src/components/RestaurantCard.tsx` — Restaurant card (name, rating, cuisine pills, thumbnail)
+- `apps/frontend/src/style.css` — Global and discovery page layout styles
 - `apps/frontend/src/components/` — Reusable UI components
 - `apps/frontend/.env` — Environment variables (VITE_GOOGLE_MAPS_API_KEY, VITE_API_BASE_URL)
 
@@ -52,7 +61,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 
 ## Tasks
 
-### [ ] 1.0 Restaurant Discovery Map Page
+### [x] 1.0 Restaurant Discovery Map Page
 
 `description`: Build the main discovery page at route `/`. A Google Map showing restaurant pins with a scrollable card list below. Clicking a pin or card navigates to the story player.
 
@@ -61,6 +70,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 `dependencies`: Phase 0 complete (frontend scaffolded, JSON data seeded, Google Maps key configured)
 
 `details`:
+
 - Use `@vis.gl/react-google-maps` to render a Google Map centered on the seeded restaurant cluster.
 - Wrap the map (or the entire app) with `<APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>`.
 - Fetch all restaurants from the backend API: `fetch('/api/restaurants')`.
@@ -72,33 +82,33 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 
 `testStrategy`: Page loads without errors. Map renders with 5 pins. Cards render below map with restaurant info. Clicking a card navigates to `/restaurant/:id`. Works on mobile viewport.
 
-- [ ] 1.1 Create `DiscoveryPage` component at `apps/frontend/src/pages/DiscoveryPage.tsx`
+- [x] 1.1 Create `DiscoveryPage` component at `apps/frontend/src/pages/DiscoveryPage.tsx`
   - Set up the page layout: map container (top) + card list container (bottom).
   - Add a `useEffect` to fetch restaurants from the API on mount.
   - Store restaurants in local state.
   - **Done when:** Component renders with placeholder text "Discovery Map" and "Restaurant Cards" sections.
 
-- [ ] 1.2 Integrate Google Map with `@vis.gl/react-google-maps`
+- [x] 1.2 Integrate Google Map with `@vis.gl/react-google-maps`
   - Wrap the app (or this page) with `<APIProvider apiKey={...}>`.
   - Render a `<Map>` component inside the map container.
   - Set default center to the average lat/lng of seeded restaurants, zoom level ~13.
   - GOTCHA: Ensure "Maps JavaScript API" is enabled in Google Cloud Console. If you see a grey box, check the API key restrictions.
   - **Done when:** Map renders and is interactive (pan/zoom).
 
-- [ ] 1.3 Add restaurant markers to the map
+- [x] 1.3 Add restaurant markers to the map
   - For each restaurant, render an `<AdvancedMarker>` (or `<Marker>`) at its `lat`/`lng`.
   - Optionally show a small label or custom pin icon.
   - On marker click, navigate to `/restaurant/:id`.
   - **Done when:** 5 pins visible on the map, clicking one navigates to the story route.
 
-- [ ] 1.4 Build restaurant card list below the map
+- [x] 1.4 Build restaurant card list below the map
   - Create a `RestaurantCard` component: shows name, rating (e.g., "⭐ 4.5"), cuisine type tags, and a thumbnail image.
   - Fetch the first image from the API response (`GET /api/restaurants` returns images inline).
   - Render cards in a vertical scrollable list.
   - On card click, navigate to `/restaurant/:id`.
   - **Done when:** Cards render for all 5 restaurants with real data, clicking navigates correctly.
 
-- [ ] 1.5 Mobile-first responsive layout
+- [x] 1.5 Mobile-first responsive layout
   - Map container: `height: 50vh`, `width: 100%` on mobile.
   - Card list: fills remaining space, scrollable via `overflow-y: auto`.
   - Add basic CSS/Tailwind styling for a clean look.
@@ -106,7 +116,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 
 ---
 
-### [ ] 2.0 User Persona Switcher Component
+### [x] 2.0 User Persona Switcher Component
 
 `description`: Build a persistent floating UI element that lets the demo user switch between the 3 seeded personas. This is what makes the demo magic — switching persona should instantly re-compile the story.
 
@@ -115,6 +125,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 `dependencies`: Phase 0 complete (user_profiles.json seeded)
 
 `details`:
+
 - Create a `UserProfileContext` using React Context to store the active user persona.
 - Fetch all user profiles from the backend API on app load.
 - Render a floating bar (bottom of screen or top-right corner) visible on all pages.
@@ -125,14 +136,14 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 
 `testStrategy`: Persona bar visible on all pages. Clicking a persona highlights it. Switching personas updates the context value (verify in React DevTools or by rendering the active persona name somewhere). Default is "The Vegan".
 
-- [ ] 2.1 Create `UserProfileContext` and provider
+- [x] 2.1 Create `UserProfileContext` and provider
   - Create `apps/frontend/src/contexts/UserProfileContext.tsx`.
   - Define context with `activeProfile: UserProfile | null`, `setActiveProfile`, `profiles: UserProfile[]`, `loading: boolean`.
   - In the provider, fetch profiles from the API on mount: `fetch('/api/user-profiles')`.
   - Default `activeProfile` to the profile where `persona_type === 'vegan'`.
   - **Done when:** Context is created and provider wraps the app in `App.tsx`.
 
-- [ ] 2.2 Build `PersonaSwitcher` UI component
+- [x] 2.2 Build `PersonaSwitcher` UI component
   - Create `apps/frontend/src/components/PersonaSwitcher.tsx`.
   - Render a floating bar with 3 persona pills.
   - Each pill shows an emoji + short name: 🥬 Vegan, 🥩 Carnivore, 🍸 Cocktail.
@@ -141,14 +152,14 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
   - Rounded corners, semi-transparent dark background, white text — should look sleek over the story player.
   - **Done when:** Floating bar visible on all pages, clicking a pill switches the active persona, active pill is visually distinct.
 
-- [ ] 2.3 Integrate persona switcher into App layout
+- [x] 2.3 Integrate persona switcher into App layout
   - Add `<UserProfileProvider>` wrapping the Router in `App.tsx`.
   - Render `<PersonaSwitcher />` inside the provider so it appears on every page.
   - **Done when:** Persona bar persists across route navigation.
 
 ---
 
-### [ ] 3.0 Instagram-Style Story Player Component
+### [x] 3.0 Instagram-Style Story Player Component
 
 `description`: THE most important UI component. A full-screen overlay that plays a sequence of story segments with progress bars, tap navigation, and auto-advance. This must feel like an Instagram/TikTok story.
 
@@ -157,6 +168,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 `dependencies`: Task 4.0 (Ken Burns animations) — can build structure first, add animations after.
 
 `details`:
+
 - Full-screen overlay: `position: fixed`, `inset: 0`, dark background, `z-index: 50`.
 - Accepts `segments: StorySegment[]` as props.
 - Shows one segment at a time (current image fills the screen).
@@ -170,7 +182,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 
 `testStrategy`: Story player opens full-screen. Progress bars animate correctly. Tapping advances/reverses. Auto-advance works at 4s intervals. Close button works. CTA shows on last segment.
 
-- [ ] 3.1 Create `StoryPlayer` component shell
+- [x] 3.1 Create `StoryPlayer` component shell
   - Create `apps/frontend/src/components/StoryPlayer.tsx`.
   - Props: `segments: StorySegment[]`, `restaurant: Restaurant`, `onClose: () => void`.
   - Render a fixed full-screen container with dark background.
@@ -178,7 +190,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
   - Render the current segment's image as a full-screen background (`object-fit: cover`).
   - **Done when:** Component renders full-screen with a single image displayed.
 
-- [ ] 3.2 Add progress bars
+- [x] 3.2 Add progress bars
   - Render a row of thin horizontal bars at the top (one per segment).
   - Completed segments: fully filled (white).
   - Current segment: animated fill from 0% to 100% over `duration_ms` (use CSS animation or a `requestAnimationFrame` timer).
@@ -186,32 +198,32 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
   - Use a `div` with `width` transitioning from `0%` to `100%` for the active bar.
   - **Done when:** Progress bars show correct state for each segment, active bar animates smoothly.
 
-- [ ] 3.3 Implement tap navigation
+- [x] 3.3 Implement tap navigation
   - Divide the screen into left half and right half tap zones.
   - Right half click/tap → `currentIndex + 1` (if not last, else close).
   - Left half click/tap → `currentIndex - 1` (if not first, else stay).
   - Reset the progress bar animation when segment changes.
   - **Done when:** Tapping left/right navigates segments correctly.
 
-- [ ] 3.4 Implement auto-advance timer
+- [x] 3.4 Implement auto-advance timer
   - Use `useEffect` + `setTimeout` keyed on `currentIndex`.
   - After `segment.duration_ms` (default 4000), advance to next segment.
   - Clear timeout on segment change or unmount.
   - On last segment auto-advance, call `onClose()`.
   - **Done when:** Segments auto-advance every 4 seconds, story closes after the last segment.
 
-- [ ] 3.5 Add close button and CTA overlay
+- [x] 3.5 Add close button and CTA overlay
   - Close button (X icon): `position: absolute`, top-right, `z-index: 60`. Calls `onClose()`.
   - CTA button: shown only on the last segment (outro). "Book a Table" button centered at the bottom of the screen. Styled as a prominent button. Links to `cta_url` or logs click for PoC.
   - **Done when:** X closes the player, CTA shows only on last segment.
 
-- [ ] 3.6 Add swipe support (nice-to-have)
+- [x] 3.6 Add swipe support (nice-to-have)
   - Listen for touch events (`touchstart`, `touchend`) to detect horizontal swipes.
   - Swipe left → next segment, swipe right → previous segment.
   - Use a minimum swipe distance threshold (~50px) to avoid accidental triggers.
   - **Done when:** Swiping navigates segments on mobile.
 
-- [ ] 3.7 Add Report Issue button
+- [x] 3.7 Add Report Issue button
   - Small, subtle icon (e.g., flag or ⚠️) in the bottom-right corner.
   - On click, `console.log('Report issue for segment:', currentIndex, segment)`.
   - Placeholder for future AI artifact reporting.
@@ -219,7 +231,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 
 ---
 
-### [ ] 4.0 Ken Burns Animation Engine
+### [x] 4.0 Ken Burns Animation Engine
 
 `description`: CSS/JS animations that make still images look cinematic. Each story segment gets a slow zoom or pan effect, creating a video-like experience from static images.
 
@@ -228,6 +240,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 `dependencies`: Task 3.0 (Story Player component exists to apply animations to)
 
 `details`:
+
 - Four animation types matching the `StorySegment.animation` type:
   - `ken_burns_zoom_in`: scale 1 → 1.15 over the segment duration
   - `ken_burns_zoom_out`: scale 1.15 → 1 over the segment duration
@@ -240,20 +253,20 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 
 `testStrategy`: Each animation type visibly moves/zooms the image. Animations are smooth (no jank). Crossfade transitions between segments are visible. No white/empty space visible during pans.
 
-- [ ] 4.1 Create Ken Burns CSS animations/classes
+- [x] 4.1 Create Ken Burns CSS animations/classes
   - Create CSS keyframes or utility classes for the 4 animation types.
   - Can be in a CSS file (`StoryPlayer.css`) or use inline styles with `transition`.
   - Each animation should run for the segment's `duration_ms`.
   - **Done when:** 4 distinct animation classes exist and can be applied to an image element.
 
-- [ ] 4.2 Apply animations to story segments in `StoryPlayer`
+- [x] 4.2 Apply animations to story segments in `StoryPlayer`
   - When a segment becomes active, apply its `animation` type to the image.
   - Reset the animation when segment changes (remove and re-add the class, or key the element on `currentIndex`).
   - Use `overflow: hidden` on the image container.
   - Size the image at ~110% of the container to give room for pan effects.
   - **Done when:** Each segment's image visibly animates with its assigned Ken Burns effect.
 
-- [ ] 4.3 Add crossfade transitions between segments
+- [x] 4.3 Add crossfade transitions between segments
   - When advancing segments, crossfade: outgoing image fades to opacity 0 while incoming image fades from opacity 0 to 1.
   - Duration: 200-300ms.
   - Can use two overlapping image elements and toggle their opacity.
@@ -261,7 +274,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 
 ---
 
-### [ ] 5.0 Story Compilation Logic (Client-Side)
+### [x] 5.0 Story Compilation Logic (Client-Side)
 
 `description`: Logic that fetches restaurant data from the backend API and compiles a `CompiledStory` — selecting and ordering images based on the active user persona's tag preferences. This is a temporary client-side version; Phase 2 will enhance it with Gemini AI personalization.
 
@@ -270,6 +283,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 `dependencies`: Task 2.0 (UserProfileContext provides active persona), JSON data files seeded
 
 `details`:
+
 - Create a `useCompiledStory(restaurantId: string)` custom hook.
 - Fetches from the API: restaurant with its images and story template.
 - Compiles the story using the active persona from `UserProfileContext`.
@@ -289,7 +303,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 
 `testStrategy`: Hook returns a `CompiledStory` with intro + personalized + outro segments. Switching persona changes the personalized segments. Fallback works when no tags match. Story always has at least 2 segments (intro + outro).
 
-- [ ] 5.1 Create `useCompiledStory` hook
+- [x] 5.1 Create `useCompiledStory` hook
   - Create `apps/frontend/src/hooks/useCompiledStory.ts`.
   - Accept `restaurantId: string` parameter.
   - Fetch restaurant with images: `fetch('/api/restaurants/${restaurantId}')` (images are included in the response).
@@ -297,7 +311,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
   - Return `{ story: CompiledStory | null, loading: boolean, error: string | null }`.
   - **Done when:** Hook fetches data from the backend API and returns raw data (compilation logic comes next).
 
-- [ ] 5.2 Implement tag-based image filtering
+- [x] 5.2 Implement tag-based image filtering
   - Create a helper function: `filterImagesByPersona(images: RestaurantImage[], profile: UserProfile): RestaurantImage[]`.
   - Filter logic: include images where at least one tag is in `profile.preferences.tags` AND zero tags are in `profile.preferences.avoid_tags`.
   - Sort by number of matching tags (descending).
@@ -305,7 +319,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
   - Fallback: if result is empty, return all `slot_type === 'personalized'` images (up to 3).
   - **Done when:** Function correctly filters images for each persona. Unit-testable pure function.
 
-- [ ] 5.3 Implement story compilation
+- [x] 5.3 Implement story compilation
   - In the hook, compile the `CompiledStory`:
     - Find intro image: `story_template.intro_image_id` → lookup in images, or first `slot_type === 'intro'` image, or first image overall.
     - Find outro image: `story_template.outro_image_id` → lookup in images, or first `slot_type === 'outro'` image.
@@ -316,14 +330,14 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
     - Attach CTA to the outro segment from the story template.
   - **Done when:** Hook returns a valid `CompiledStory` with correct segment order and types.
 
-- [ ] 5.4 Re-compile on persona change
+- [x] 5.4 Re-compile on persona change
   - Add `activeProfile` from `UserProfileContext` as a dependency of the compilation `useEffect` / `useMemo`.
   - When `activeProfile` changes, re-run the filtering and compilation (but don't re-fetch from the API — cache the raw data).
   - **Done when:** Switching persona in the UI instantly changes the story segments (different images appear).
 
 ---
 
-### [ ] 6.0 Loading & Error States
+### [x] 6.0 Loading & Error States
 
 `description`: Build graceful loading and error handling for the story player to ensure a smooth demo experience even when data is loading or missing.
 
@@ -332,6 +346,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 `dependencies`: Task 3.0 (Story Player), Task 5.0 (Story compilation)
 
 `details`:
+
 - Loading skeleton: dark full-screen with pulsing skeleton bars mimicking the story UI.
 - Image preloading: before starting playback, preload all segment images using `new Image()` in JavaScript.
 - Error fallback: if a restaurant has no images, show "No story available yet" with the restaurant name.
@@ -340,33 +355,33 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 
 `testStrategy`: Loading skeleton appears during data fetch. Story starts only after images are preloaded. No story shows a friendly message. Broken image URLs don't crash the player.
 
-- [ ] 6.1 Build loading skeleton for story player
+- [x] 6.1 Build loading skeleton for story player
   - Create a `StoryLoadingSkeleton` component.
   - Full-screen dark background with animated pulsing bars at the top (mimicking progress bars) and a pulsing rectangle in the center (mimicking the image area).
   - Use CSS animation (`@keyframes pulse`) for the shimmer effect.
   - Show this while `useCompiledStory` is loading.
   - **Done when:** A skeleton screen appears while story data loads, matching the story player layout.
 
-- [ ] 6.2 Implement image preloading
+- [x] 6.2 Implement image preloading
   - Before showing the story player, preload all segment images.
   - Use `Promise.all(segments.map(s => new Promise((resolve, reject) => { const img = new Image(); img.onload = resolve; img.onerror = resolve; img.src = s.image.image_url; })))`.
   - Note: `onerror` also resolves to avoid blocking on broken images.
   - Optionally show a progress indicator (e.g., "Loading 3/5 images...").
   - **Done when:** Story playback starts only after all images are loaded (or attempted). No flash of empty screen.
 
-- [ ] 6.3 Build error fallback for no-story state
+- [x] 6.3 Build error fallback for no-story state
   - If the compiled story has 0 segments, or the restaurant has no images, show a full-screen message: restaurant name + "No story available yet" + a back button.
   - Styled to match the dark story player aesthetic.
   - **Done when:** Navigating to a restaurant with no images shows the fallback instead of crashing.
 
-- [ ] 6.4 Handle individual image load failures
+- [x] 6.4 Handle individual image load failures
   - In the `StoryPlayer`, if an image fails to render (e.g., `onError` on the `<img>` tag), skip that segment and advance to the next.
   - If all images fail, show the no-story fallback.
   - **Done when:** A broken image URL in one segment doesn't crash the player — it skips to the next segment.
 
 ---
 
-### [ ] 7.0 Restaurant Detail Bar
+### [x] 7.0 Restaurant Detail Bar
 
 `description`: A subtle info overlay within the story player showing restaurant name, rating, and cuisine type — similar to how Instagram shows the username on stories.
 
@@ -375,6 +390,7 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 `dependencies`: Task 3.0 (Story Player component)
 
 `details`:
+
 - Semi-transparent bar at the top of the story, positioned below the progress bars.
 - Shows: restaurant name (bold), rating (e.g., "⭐ 4.5"), cuisine type tags (e.g., "Italian • Pizza").
 - Subtle styling: semi-transparent dark background, white text, small font.
@@ -382,14 +398,14 @@ See shared TypeScript types in `src/types/index.ts` for the full data model. Dat
 
 `testStrategy`: Bar shows correct restaurant info. Text is readable but unobtrusive. Bar doesn't overlap progress bars.
 
-- [ ] 7.1 Create `RestaurantDetailBar` component
+- [x] 7.1 Create `RestaurantDetailBar` component
   - Create `apps/frontend/src/components/RestaurantDetailBar.tsx`.
   - Props: `restaurant: Restaurant`.
   - Render: name (bold, left-aligned), rating with star emoji, cuisine types joined by " • ".
   - Style: `position: absolute`, top area (below progress bars, e.g., `top: 28px`), full width, `padding: 8px 16px`, semi-transparent dark background (`rgba(0,0,0,0.5)`), white text, small font size.
   - **Done when:** Bar displays restaurant info within the story player without obstructing content.
 
-- [ ] 7.2 Integrate into `StoryPlayer`
+- [x] 7.2 Integrate into `StoryPlayer`
   - Render `<RestaurantDetailBar restaurant={restaurant} />` inside the story player container.
   - Position it below the progress bar row.
   - Ensure z-index layers correctly: progress bars > detail bar > image.
