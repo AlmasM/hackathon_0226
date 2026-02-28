@@ -4,3 +4,4 @@ apps/frontend/dist/
 .nx/cache/
 .DS_Store
 .nx/
+apps/backend/.venv/

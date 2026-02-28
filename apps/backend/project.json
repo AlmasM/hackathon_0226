@@ -4,11 +4,25 @@
   "sourceRoot": "apps/backend",
   "projectType": "application",
   "targets": {
+    "setup-venv": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend",
+        "command": "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
+      }
+    },
+    "activate-venv": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend",
+        "command": "zsh -ic 'source .venv/bin/activate && echo \"Activated apps/backend/.venv (type exit to leave)\" && exec zsh -i'"
+      }
+    },
     "serve": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/backend",
-        "command": "python3 dev_server.py"
+        "command": ".venv/bin/python dev_server.py"
       }
     }
   }

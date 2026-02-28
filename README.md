@@ -77,9 +77,12 @@ The backend is a Flask app deployed as a Python serverless function on Vercel.
 For local backend-only development with Nx:
 
 ```bash
-python3 -m pip install -r apps/backend/requirements.txt
+npx nx run backend:setup-venv
+npx nx run backend:activate-venv
 npx nx run backend:serve
 ```
+
+`backend:activate-venv` opens a shell with `apps/backend/.venv` activated.
 
 Then test:
 
